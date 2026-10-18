@@ -1,0 +1,28 @@
+// Formato do perfil como o app usa (datas em millis, pra caber no redux).
+// No Firestore ficam como Timestamp - ver toProfile() em profile.service.ts.
+export type UserProfile = {
+  uid: string;
+  nick: string;
+  photoUrl: string | null;
+  cityId: string;
+  cityName: string;
+  stateId: string;
+  stars: number;
+  wins: number;
+  losses: number;
+  streak: number;
+  bestStreak: number;
+  notificationsEnabled: boolean;
+  // null = nunca trocou o nick (a primeira troca é livre, ver firestore.rules).
+  nickChangedAt: number | null;
+  createdAt: number | null;
+};
+
+export type City = {
+  id: string;
+  name: string;
+  stateId: string;
+};
+
+export const INITIAL_STARS = 20;
+export const NICK_CHANGE_INTERVAL_DAYS = 30;

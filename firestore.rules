@@ -1,0 +1,89 @@
+rules_version = '2';
+
+// Regras do banco `duel-start` (ver firebase.json). O app só escreve o que é
+// do próprio usuário e que não vale estrelas: perfil (nick, foto, cidade,
+// notificações) e a reserva do nick. Estrelas, vitórias e derrotas nascem
+// com valores fixos no cadastro e depois só mudam via Cloud Functions (que
+// ignoram estas regras) - um app modificado nunca consegue mexer no saldo.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isNick(n) {
+      return n is string && n.matches('^[a-z0-9_]{3,20}$');
+    }
+
+    function nickDoc(n) {
+      return /databases/$(database)/documents/nicks/$(n);
+    }
+
+    // Campos que o próprio usuário pode alterar depois do cadastro.
+    function editableFields() {
+      return ['nick', 'nickLower', 'nickChangedAt', 'photoUrl', 'cityId', 'cityName',
+              'stateId', 'fcmTokens', 'notificationsEnabled'];
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn();
+
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(editableFields().concat([
+             'stars', 'wins', 'losses', 'streak', 'bestStreak', 'disputeCount', 'createdAt']))
+        && request.resource.data.stars == 20
+        && request.resource.data.wins == 0
+        && request.resource.data.losses == 0
+        && request.resource.data.streak == 0
+        && request.resource.data.bestStreak == 0
+        && request.resource.data.disputeCount == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.nickChangedAt == null
+        && isNick(request.resource.data.nickLower)
+        && request.resource.data.nick.lower() == request.resource.data.nickLower
+        // O nick precisa ser reservado no MESMO batch (ver profile.service.ts).
+        && getAfter(nickDoc(request.resource.data.nickLower)).data.uid == uid;
+
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(editableFields())
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['nick', 'nickLower'])
+          || (
+            // Troca de nick: 1 a cada 30 dias (a primeira é livre).
+            (resource.data.nickChangedAt == null
+              || request.time > resource.data.nickChangedAt + duration.value(30, 'd'))
+            && request.resource.data.nickChangedAt == request.time
+            && isNick(request.resource.data.nickLower)
+            && request.resource.data.nick.lower() == request.resource.data.nickLower
+            && getAfter(nickDoc(request.resource.data.nickLower)).data.uid == uid
+          )
+        );
+    }
+
+    // Um doc por nick (id = nick em minúsculas) garante que ele é único.
+    // Ao trocar de nick, o antigo fica com `releasedAt` e continua reservado
+    // por 30 dias, pra ninguém se passar pelo jogador logo depois da troca.
+    match /nicks/{nick} {
+      allow read: if signedIn();
+
+      allow create: if signedIn() && isNick(nick)
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid;
+
+      allow update: if signedIn() && (
+        // Dono libera o nick antigo ao trocar.
+        (resource.data.uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['uid', 'releasedAt'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.releasedAt == request.time)
+        // Qualquer um assume um nick liberado há mais de 30 dias, ou o dono
+        // retoma o próprio nick liberado.
+        || (resource.data.get('releasedAt', null) != null
+          && (request.time > resource.data.releasedAt + duration.value(30, 'd')
+              || resource.data.uid == request.auth.uid)
+          && request.resource.data.keys().hasOnly(['uid'])
+          && request.resource.data.uid == request.auth.uid)
+      );
+    }
+  }
+}

@@ -31,4 +31,8 @@ export const analyticsService = {
   logSignupStarted: () => logEvent(analyticsInstance, 'signup_started'),
   logSignupCompleted: (method: 'email' | 'google') =>
     logEvent(analyticsInstance, 'sign_up', { method }),
+  // Fim do cadastro do perfil (nick, cidade...) - diferente de sign_up, que
+  // é só a criação da conta; a diferença entre os dois mostra quem desiste
+  // no meio do cadastro.
+  logOnboardingCompleted: () => logEvent(analyticsInstance, 'onboarding_completed'),
 };

@@ -12,6 +12,7 @@ import { NavigationContainer, useNavigationContainerRef } from '@react-navigatio
 import { Routes } from './navigation';
 import { store, persistor } from './redux/store';
 import { useAuthListener } from './services/auth/useAuthListener';
+import { useProfileListener } from './services/profile/useProfileListener';
 import { paperTheme } from './configs/paperTheme';
 import { analyticsService } from './services/analytics/analytics.service';
 import { ScreensTypes } from './navigation/screensTypes';
@@ -20,6 +21,7 @@ import { colors } from './configs/colors';
 
 function AuthListener() {
   useAuthListener();
+  useProfileListener();
   return null;
 }
 

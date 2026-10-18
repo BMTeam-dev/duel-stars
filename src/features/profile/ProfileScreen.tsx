@@ -1,22 +1,44 @@
 import * as React from 'react';
 import { useState } from 'react';
+import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import styled from 'styled-components/native';
 import { colors } from '../../configs/colors';
-import { fontSize, spacing } from '../../configs/theme';
+import { spacing } from '../../configs/theme';
 import { ProfileProps } from '../../navigation/props';
 import { useAppSelector } from '../../redux/store';
 import { mapAuthError, signOut } from '../../services/auth/auth.service';
+import { Avatar } from '../../shared/ui/Avatar';
 import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
 import { useDialog } from '../../shared/ui/dialog/DialogProvider';
 import { Icon } from '../../shared/ui/Icon';
 import { toast } from '../../shared/ui/toast';
+import {
+  CityRow,
+  CityText,
+  EditButton,
+  Identity,
+  Nick,
+  SectionEmpty,
+  SectionTitle,
+  StarsCaption,
+  StarsCard,
+  StarsLabel,
+  StarsNumber,
+  StarsRow,
+  StatLabel,
+  StatTile,
+  StatValue,
+  StatsRow,
+  TopBar,
+  TopTitle,
+} from './styles';
 
-function ProfileScreen(_: ProfileProps) {
-  const user = useAppSelector(state => state.auth.user);
+function ProfileScreen({ navigation }: ProfileProps) {
+  const profile = useAppSelector(state => state.profile.profile);
   const { showDialog } = useDialog();
   const [signingOut, setSigningOut] = useState(false);
+
+  if (!profile) return null;
 
   const handleSignOut = async () => {
     const confirmed = await showDialog({
@@ -41,20 +63,57 @@ function ProfileScreen(_: ProfileProps) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-      <Content>
-        <Title>Perfil</Title>
-        <Card>
-          <Row>
-            <Avatar>
-              <Icon name="account" size={32} color={colors.gold.main} />
-            </Avatar>
-            <Info>
-              <Name>{user?.name ?? 'Duelista'}</Name>
-              {!!user?.email && <Email>{user.email}</Email>}
-            </Info>
-          </Row>
-        </Card>
-        <Spacer />
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl }}>
+        <TopBar>
+          <TopTitle>Perfil</TopTitle>
+          <EditButton onPress={() => navigation.navigate('EditProfile')} hitSlop={8}>
+            <Icon name="pencil" size={20} color={colors.text.secondary} />
+          </EditButton>
+        </TopBar>
+
+        <Identity>
+          <Avatar name={profile.nick} photoUrl={profile.photoUrl} size={88} />
+          <Nick>@{profile.nick}</Nick>
+          <CityRow>
+            <Icon name="map-marker" size={16} color={colors.text.secondary} />
+            <CityText>
+              {profile.cityName} · {profile.stateId}
+            </CityText>
+          </CityRow>
+        </Identity>
+
+        {/* As estrelas são o centro do app: o que se aposta e o que define
+        // o ranking - por isso o maior destaque da tela. */}
+        <StarsCard>
+          <StarsRow>
+            <Icon name="star-four-points" size={40} color={colors.gold.main} />
+            <StarsNumber>{profile.stars}</StarsNumber>
+          </StarsRow>
+          <StarsLabel>estrelas</StarsLabel>
+          <StarsCaption>Aposte em desafios para ganhar mais e subir no ranking.</StarsCaption>
+        </StarsCard>
+
+        <StatsRow>
+          <StatTile>
+            <StatValue>{profile.wins}</StatValue>
+            <StatLabel>Vitórias</StatLabel>
+          </StatTile>
+          <StatTile>
+            <StatValue>{profile.losses}</StatValue>
+            <StatLabel>Derrotas</StatLabel>
+          </StatTile>
+          <StatTile>
+            <StatValue>{profile.streak}</StatValue>
+            <StatLabel>Sequência</StatLabel>
+          </StatTile>
+        </StatsRow>
+
+        <SectionTitle>Medalhas</SectionTitle>
+        <SectionEmpty>Vença seu primeiro duelo para ganhar a primeira medalha.</SectionEmpty>
+
+        <SectionTitle>Histórico</SectionTitle>
+        <SectionEmpty>Seus duelos aparecem aqui.</SectionEmpty>
+
         <Button
           label="Sair da conta"
           variant="secondary"
@@ -62,58 +121,9 @@ function ProfileScreen(_: ProfileProps) {
           loading={signingOut}
           onPress={handleSignOut}
         />
-      </Content>
+      </ScrollView>
     </SafeAreaView>
   );
 }
-
-const Content = styled.View`
-  flex: 1;
-  padding: ${spacing.lg}px;
-`;
-
-const Title = styled.Text`
-  color: ${colors.text.primary};
-  font-size: ${fontSize.headline}px;
-  font-weight: 800;
-  margin-bottom: ${spacing.lg}px;
-`;
-
-const Row = styled.View`
-  flex-direction: row;
-  align-items: center;
-`;
-
-const Avatar = styled.View`
-  width: 56px;
-  height: 56px;
-  border-radius: 28px;
-  align-items: center;
-  justify-content: center;
-  background-color: ${colors.gold.soft};
-  border-width: 2px;
-  border-color: ${colors.gold.main};
-  margin-right: ${spacing.md}px;
-`;
-
-const Info = styled.View`
-  flex: 1;
-`;
-
-const Name = styled.Text`
-  color: ${colors.text.primary};
-  font-size: ${fontSize.title}px;
-  font-weight: 700;
-`;
-
-const Email = styled.Text`
-  color: ${colors.text.secondary};
-  font-size: ${fontSize.body}px;
-  margin-top: 2px;
-`;
-
-const Spacer = styled.View`
-  flex: 1;
-`;
 
 export default ProfileScreen;

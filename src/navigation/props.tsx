@@ -4,6 +4,8 @@ import { StackScreenProps, TabScreenProps } from './navigationTypes';
 // Screen.tsx importa pra tipar suas props de `navigation`/`route`.
 export type LoginProps = StackScreenProps<'Login'>;
 export type SignupProps = StackScreenProps<'Signup'>;
+export type OnboardingProps = StackScreenProps<'Onboarding'>;
+export type EditProfileProps = StackScreenProps<'EditProfile'>;
 
 export type FeedProps = TabScreenProps<'Feed'>;
 export type CardsProps = TabScreenProps<'Cards'>;

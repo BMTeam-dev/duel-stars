@@ -1,0 +1,9 @@
+{
+  "firestore": [
+    {
+      "database": "duel-start",
+      "rules": "firestore.rules",
+      "indexes": "firestore.indexes.json"
+    }
+  ]
+}

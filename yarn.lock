@@ -3227,6 +3227,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@react-native-firebase/firestore@npm:26.4.0":
+  version: 26.4.0
+  resolution: "@react-native-firebase/firestore@npm:26.4.0"
+  dependencies:
+    react-native-url-polyfill: 4.0.0
+  peerDependencies:
+    "@react-native-firebase/app": 26.4.0
+  checksum: cc02bc370bda5a675bdfeac05e4f97de58688d27aff98481c3368d67615c300db1af424bf101e0868d359250cadd18940a29cc0a446cba7301c239762bc28657
+  languageName: node
+  linkType: hard
+
+"@react-native-firebase/messaging@npm:26.4.0":
+  version: 26.4.0
+  resolution: "@react-native-firebase/messaging@npm:26.4.0"
+  peerDependencies:
+    "@react-native-firebase/app": 26.4.0
+    expo: ">=47.0.0"
+  peerDependenciesMeta:
+    expo:
+      optional: true
+  checksum: 2b9f7b678597071b5c6719d8a903034e6056a80736173f42a863817b0f04c739ad621e991d6d6f329ccaefcb87ccdf185cc432e6f540a273a0e3274aad688458
+  languageName: node
+  linkType: hard
+
 "@react-native-google-signin/google-signin@npm:^16.1.5":
   version: 16.1.5
   resolution: "@react-native-google-signin/google-signin@npm:16.1.5"
@@ -5346,6 +5370,8 @@ __metadata:
     "@react-native-firebase/app": ^26.4.0
     "@react-native-firebase/auth": ^26.4.0
     "@react-native-firebase/crashlytics": ^26.4.0
+    "@react-native-firebase/firestore": 26.4.0
+    "@react-native-firebase/messaging": 26.4.0
     "@react-native-google-signin/google-signin": ^16.1.5
     "@react-native-vector-icons/material-design-icons": ^13.1.4
     "@react-native/babel-preset": 0.87.1
@@ -9238,6 +9264,15 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 86ba5d629146248e77123c4f71f6066ae3c642956d6b0432a5065e66b2f6d11000704dc986d76ec13509fe8f60490c5ae50f1e313c799dc3e1c1b5fc737f1802
+  languageName: node
+  linkType: hard
+
+"react-native-url-polyfill@npm:4.0.0":
+  version: 4.0.0
+  resolution: "react-native-url-polyfill@npm:4.0.0"
+  peerDependencies:
+    react-native: "*"
+  checksum: 5582116d3e5ece5092e467877e0a99550b3d76a3b527456ee866da1fb97bf6d50ac91b8b5f5828da0e55a414ce9c3ea864eca0073fb6773130aa2785f9cd9652
   languageName: node
   linkType: hard
 

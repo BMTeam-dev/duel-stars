@@ -13,5 +13,7 @@ export type TabsTypes = {
 export type ScreensTypes = {
   Login: undefined;
   Signup: undefined;
+  Onboarding: undefined;
   MainTabs: NavigatorScreenParams<TabsTypes>;
+  EditProfile: undefined;
 };

@@ -17,6 +17,7 @@ import autoMergeLevel2 from 'redux-persist/lib/stateReconciler/autoMergeLevel2';
 import { persistedReducer } from './persistedSlice';
 import { mainReducer } from './mainSlice';
 import { authReducer } from './authSlice';
+import { profileReducer } from './profileSlice';
 
 import { reduxStorage } from './storage';
 
@@ -24,6 +25,7 @@ const reducers = combineReducers({
   persisted: persistedReducer,
   main: mainReducer,
   auth: authReducer,
+  profile: profileReducer,
 });
 
 export type AppRootState = ReturnType<typeof reducers>;

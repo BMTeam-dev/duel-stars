@@ -34,10 +34,11 @@ export type AuthUser = {
   uid: string;
   email: string | null;
   name: string | null;
+  photoUrl: string | null;
 };
 
 function toAuthUser(user: User): AuthUser {
-  return { uid: user.uid, email: user.email, name: user.displayName };
+  return { uid: user.uid, email: user.email, name: user.displayName, photoUrl: user.photoURL };
 }
 
 export function onAuthStateChanged(
@@ -59,7 +60,7 @@ export async function signUpWithEmail(
   // onAuthStateChanged disparar de novo, então o objeto `user` em memória
   // fica com o displayName antigo (null) até a próxima sessão - usamos o
   // `name` que a gente mesmo acabou de salvar.
-  return { uid: credential.user.uid, email: credential.user.email, name };
+  return { uid: credential.user.uid, email: credential.user.email, name, photoUrl: null };
 }
 
 export async function signInWithEmail(

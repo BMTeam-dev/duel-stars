@@ -127,3 +127,9 @@ novo.
   `duel-start` explicitamente.
 - `google-services.json` / `GoogleService-Info.plist` ficam fora do git;
   baixe com `firebase apps:sdkconfig` (ver `CONTRIBUTING.md`).
+- Regras de segurança em `firestore.rules`, publicadas com
+  `firebase deploy --only firestore` (o `firebase.json` já aponta pro banco
+  `duel-start`). Estrelas/vitórias/derrotas só nascem com valor fixo no
+  cadastro e depois só mudam via Cloud Functions - o app nunca escreve isso.
+- Perfil: `users/{uid}`; unicidade de nick: `nicks/{nickEmMinúsculas}`
+  (ver `services/profile/profile.service.ts`).

@@ -1,3 +1,5 @@
+import { UserProfile } from '../services/profile/profile.types';
+
 // Só o que realmente precisa sobreviver a fechar/abrir o app entra aqui -
 // qualquer coisa recalculável (ex: `remaining`/`limit` de uma API) fica de
 // fora do persist. Ver store.ts pro mecanismo de persistência seletiva.
@@ -15,10 +17,17 @@ export type AuthUserState = {
   uid: string;
   email: string | null;
   name: string | null;
+  photoUrl: string | null;
 };
 
 export type AuthSlice = {
   // undefined = ainda não sabemos (Firebase carregando a sessão salva, ver
   // useAuthListener.ts); null = deslogado; AuthUserState = logado.
   user: AuthUserState | null | undefined;
+};
+
+export type ProfileSlice = {
+  // undefined = ainda carregando do Firestore; null = logado mas sem perfil
+  // (cadastro não concluído, ver navigation/index.tsx); UserProfile = pronto.
+  profile: UserProfile | null | undefined;
 };
