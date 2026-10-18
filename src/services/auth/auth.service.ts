@@ -16,11 +16,12 @@ import { crashReportingService } from '../crashReporting/crashReporting.service'
 
 // Client ID "Web" (client_type 3), gerado automaticamente pelo Firebase ao
 // habilitar o provedor Google em Authentication > Sign-in method - é o mesmo
-// em Android e iOS (não é a chave por-plataforma). Não é segredo: já vai
-// embutido em texto claro no google-services.json/GoogleService-Info.plist
-// que o app carrega de qualquer forma. SUBSTITUA pelo client ID do SEU
-// projeto Firebase antes de usar Google Sign-In de verdade.
-const GOOGLE_WEB_CLIENT_ID = 'SEU_WEB_CLIENT_ID.apps.googleusercontent.com';
+// em Android e iOS (não é a chave por-plataforma). Não é segredo. Neste
+// projeto ele NÃO veio no google-services.json baixado, então foi copiado da
+// config do provedor Google (Authentication > Sign-in method > Google >
+// Web SDK configuration).
+const GOOGLE_WEB_CLIENT_ID =
+  '679249012112-1i6n3kcbdifg2bc3u468mtmnbos49d57.apps.googleusercontent.com';
 
 GoogleSignin.configure({
   webClientId: GOOGLE_WEB_CLIENT_ID,

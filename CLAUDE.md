@@ -115,3 +115,15 @@ novo.
   projeto) - `services/auth/` fala direto com Firebase Auth, sem servidor
   próprio no meio. Se seu app precisar de um backend, ele é um projeto
   separado, não faz parte deste scaffold.
+
+## Firebase deste projeto
+
+- Projeto: display name "Duel Stars", ID `newagent-90870` (projeto antigo
+  reaproveitado por falta de cota no Google Cloud - o ID não muda).
+- Firestore: banco **nomeado** `duel-start` (modo nativo, Standard,
+  `southamerica-east1`). Não é o `(default)` - o `(default)` desse projeto é
+  um banco legado em modo Datastore, vazio, que não serve pro SDK. Todo
+  acesso ao Firestore (app e Cloud Functions) precisa passar o ID
+  `duel-start` explicitamente.
+- `google-services.json` / `GoogleService-Info.plist` ficam fora do git;
+  baixe com `firebase apps:sdkconfig` (ver `CONTRIBUTING.md`).
