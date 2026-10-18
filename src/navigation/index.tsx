@@ -3,9 +3,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { ScreensTypes } from './screensTypes';
 import { useAppSelector } from '../redux/store';
+import { MainTabs } from './MainTabs';
 
 // Screens
-import HomeScreen from '../features/home/HomeScreen';
 import LoginScreen from '../features/auth/LoginScreen';
 import SignupScreen from '../features/auth/SignupScreen';
 
@@ -16,20 +16,24 @@ export function Routes() {
 
   // `undefined` = Firebase ainda não terminou de restaurar a sessão salva
   // (useAuthListener.ts) - espera resolver antes de montar o navigator, pra
-  // decidir a tela inicial certa de primeira (sessão existente -> direto
-  // pra Home; sem sessão -> Login) em vez de montar sempre em Login e ter
-  // que "corrigir" depois com reset() (ficaria com cara de bug - pulava de
-  // tela sozinho). Flash em branco é breve, o Firebase resolve isso quase
-  // instantaneamente.
+  // abrir direto na tela certa em vez de piscar no Login.
   if (user === undefined) {
     return null;
   }
 
+  // Telas de login e do app em grupos separados, escolhidos pelo estado de
+  // auth: ao logar ou sair, o React Navigation troca de grupo sozinho -
+  // ninguém precisa chamar reset(), e não dá pra "voltar" pro Login logado.
   return (
-    <Stack.Navigator initialRouteName={user ? 'Home' : 'Login'}>
-      <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Signup" component={SignupScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {user ? (
+        <Stack.Screen name="MainTabs" component={MainTabs} />
+      ) : (
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Signup" component={SignupScreen} />
+        </>
+      )}
     </Stack.Navigator>
   );
 }

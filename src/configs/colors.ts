@@ -1,28 +1,33 @@
-// Paleta placeholder (não é identidade visual definitiva) - troque pelas
-// cores da sua marca. A estrutura (base/auxiliary/transparency) é o que
-// vale reaproveitar: cores "base" pra fundo/superfícies, "auxiliary" pra
-// feedback semântico (erro, sucesso, aviso), "transparency" pra overlays
-// derivados de uma única cor (evita cores soltas inconsistentes entre si).
+// Identidade do Duel Stars: tema escuro como padrão (clima de mesa de card
+// game) e dourado como cor de destaque - dourado = estrelas, então é
+// reservado pro que é ação principal ou valor em jogo; não use em
+// decoração, senão perde o peso.
 export const colors = {
-  base: {
-    primary: '#3B4B5C',
-    secondary: '#6B7B8C',
-    tertiary: '#1B2530',
-    darkest: '#0F151C',
+  background: '#0E0F14',
+  surface: '#171922',
+  surfaceRaised: '#20232F',
+  border: '#2C3040',
+
+  text: {
+    primary: '#F4F1E8',
+    secondary: '#A3A7B7',
+    muted: '#6B7084',
   },
-  auxiliary: {
-    neutral: '#869AB2',
-    positive: '#4BD070',
+
+  gold: {
+    main: '#E8B931',
+    dark: '#B88A12',
+    // Texto/ícone em cima de um fundo dourado - branco some no dourado.
+    on: '#1A1405',
+    soft: 'rgba(232, 185, 49, 0.14)',
+  },
+
+  feedback: {
+    positive: '#4BD07A',
+    negative: '#FF6B5E',
     warning: '#FCD753',
-    negative: '#FF8578',
-    negativeIntense: '#AC392E',
-    white: '#F5F5F5',
-    black: '#000000',
-    alternativeBlack: '#2E2E2E',
   },
-  transparency: {
-    invisible: 'rgba(59, 75, 92, 0.04)',
-    semiTransparent: 'rgba(59, 75, 92, 0.16)',
-    opaque: 'rgba(59, 75, 92, 0.4)',
-  },
+
+  overlay: 'rgba(0, 0, 0, 0.6)',
+  white: '#FFFFFF',
 };

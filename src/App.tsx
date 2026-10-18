@@ -4,6 +4,8 @@ import BootSplash from 'react-native-bootsplash';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PaperProvider } from 'react-native-paper';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { Toaster } from 'sonner-native';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
@@ -13,6 +15,8 @@ import { useAuthListener } from './services/auth/useAuthListener';
 import { paperTheme } from './configs/paperTheme';
 import { analyticsService } from './services/analytics/analytics.service';
 import { ScreensTypes } from './navigation/screensTypes';
+import { DialogProvider } from './shared/ui/dialog/DialogProvider';
+import { colors } from './configs/colors';
 
 function AuthListener() {
   useAuthListener();
@@ -42,7 +46,7 @@ export default function App() {
                 // Splash nativa (gerada por react-native-bootsplash) fica
                 // visível até chamarmos hide() explicitamente - aqui é o
                 // primeiro momento em que sabemos pra qual tela ir (Login
-                // vs Home, ver navigation/index.tsx), então é quando some,
+                // vs Feed, ver navigation/index.tsx), então é quando some,
                 // com um fade suave em vez de corte seco.
                 BootSplash.hide({ fade: true });
               }}
@@ -59,8 +63,19 @@ export default function App() {
               }}
             >
               <PaperProvider theme={paperTheme}>
-                <AuthListener />
-                <Routes />
+                {/* Sheets e o DialogProvider ficam dentro do NavigationContainer
+                // pra poder usar hooks de navegação no conteúdo deles. */}
+                <BottomSheetModalProvider>
+                  <DialogProvider>
+                    <AuthListener />
+                    <Routes />
+                  </DialogProvider>
+                </BottomSheetModalProvider>
+                <Toaster
+                  theme="dark"
+                  position="top-center"
+                  toastOptions={{ style: { backgroundColor: colors.surfaceRaised } }}
+                />
               </PaperProvider>
             </NavigationContainer>
           </SafeAreaProvider>

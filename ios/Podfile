@@ -8,11 +8,14 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
+# Firebase (React Native Firebase) no iOS exige frameworks estáticos - sem
+# isso o pod install falha com "Swift pods cannot yet be integrated as
+# static libraries" (AppCheckCore/GoogleUtilities). Com linkage estática, o
+# Firebase via SPM duplica símbolos entre os pods do RNFirebase, então ele
+# vem via CocoaPods ($RNFirebaseDisableSPM).
+$RNFirebaseAsStaticFramework = true
+$RNFirebaseDisableSPM = true
+use_frameworks! :linkage => :static
 
 target 'DuelStars' do
   config = use_native_modules!

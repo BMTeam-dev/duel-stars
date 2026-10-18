@@ -1,25 +1,16 @@
-import {
-  CompositeScreenProps,
-  NavigatorScreenParams,
-} from '@react-navigation/native';
+import { CompositeScreenProps } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ScreensTypes } from './screensTypes';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { ScreensTypes, TabsTypes } from './screensTypes';
 
-export type RootStackParamList = {
-  RootStack: NavigatorScreenParams<ScreensTypes>;
-};
-
-type RootStackScreenProps<T extends keyof RootStackParamList> =
-  NativeStackScreenProps<RootStackParamList, T>;
-
-export type GlobalNavigationProps = RootStackScreenProps<
-  keyof RootStackParamList
+export type StackScreenProps<T extends keyof ScreensTypes> = NativeStackScreenProps<
+  ScreensTypes,
+  T
 >;
 
-export type StackScreenProps<T extends keyof ScreensTypes> = {
-  navigation: CompositeScreenProps<
-    GlobalNavigationProps,
-    NativeStackScreenProps<ScreensTypes, T>
-  >['navigation'];
-  route: NativeStackScreenProps<ScreensTypes, T>['route'];
-};
+// Tela de aba: `navigation` enxerga as outras abas E as telas do stack de
+// fora (ex: abrir uma tela cheia a partir do Feed).
+export type TabScreenProps<T extends keyof TabsTypes> = CompositeScreenProps<
+  BottomTabScreenProps<TabsTypes, T>,
+  NativeStackScreenProps<ScreensTypes>
+>;

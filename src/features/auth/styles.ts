@@ -24,32 +24,32 @@ export const BackButton = styled.TouchableOpacity`
   border-radius: 20px;
   justify-content: center;
   align-items: center;
-  background-color: ${colors.transparency.semiTransparent};
+  background-color: ${colors.border};
 `;
 
 export const BackButtonIcon = styled(Text)`
-  color: ${colors.auxiliary.white};
+  color: ${colors.text.primary};
   font-size: 20px;
 `;
 
 export const AppName = styled(Text)`
-  color: ${colors.auxiliary.white};
+  color: ${colors.text.primary};
   text-align: center;
   margin-bottom: 32px;
 `;
 
 export const Title = styled(Text)`
-  color: ${colors.auxiliary.white};
+  color: ${colors.text.primary};
   margin-bottom: 4px;
 `;
 
 export const Subtitle = styled(Text)`
-  color: ${colors.auxiliary.neutral};
+  color: ${colors.text.secondary};
   margin-bottom: 24px;
 `;
 
 export const ErrorText = styled(Text)`
-  color: ${colors.auxiliary.negative};
+  color: ${colors.feedback.negative};
   margin-bottom: 16px;
 `;
 
@@ -68,11 +68,11 @@ export const DividerRow = styled.View`
 export const DividerLine = styled.View`
   flex: 1;
   height: 1px;
-  background-color: ${colors.transparency.semiTransparent};
+  background-color: ${colors.border};
 `;
 
 export const DividerLabel = styled(Text)`
-  color: ${colors.auxiliary.neutral};
+  color: ${colors.text.secondary};
   margin-left: 12px;
   margin-right: 12px;
 `;
@@ -81,14 +81,14 @@ export const GoogleButton = styled.TouchableOpacity`
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  background-color: ${colors.auxiliary.white};
-  border-radius: 8px;
+  background-color: ${colors.text.primary};
+  border-radius: 12px;
   padding: 14px;
   min-height: 48px;
 `;
 
 export const GoogleButtonText = styled(Text)`
-  color: ${colors.base.darkest};
+  color: ${colors.background};
   font-weight: 600;
 `;
 
@@ -100,18 +100,12 @@ export const FooterRow = styled.View`
 `;
 
 export const FooterText = styled(Text)`
-  color: ${colors.auxiliary.neutral};
+  color: ${colors.text.secondary};
 `;
 
-export const SkipLinkText = styled(Text)`
-  color: ${colors.auxiliary.neutral};
-  text-align: center;
-  text-decoration: underline;
-  margin-top: 32px;
-`;
 
 export const FooterLinkText = styled(Text)`
-  color: ${colors.auxiliary.white};
+  color: ${colors.text.primary};
   font-weight: 600;
   margin-left: 4px;
 `;

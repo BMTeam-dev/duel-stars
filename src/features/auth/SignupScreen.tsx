@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button } from 'react-native-paper';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../../configs/colors';
 import { SignupProps } from '../../navigation/props';
-import { ScreensTypes } from '../../navigation/screensTypes';
 import { signUpWithEmail, mapAuthError } from '../../services/auth/auth.service';
 import { analyticsService } from '../../services/analytics/analytics.service';
+import { Button } from '../../shared/ui/Button';
 import { authSliceActions } from '../../redux/authSlice';
 import { useAppDispatch } from '../../redux/store';
 import {
@@ -52,14 +50,9 @@ function SignupScreen({ navigation }: SignupProps) {
       const user = await signUpWithEmail(name.trim(), email.trim(), password);
       analyticsService.logSignupCompleted('email');
       // onAuthStateChanged (ver useAuthListener.ts) não dispara de novo só
-      // porque o displayName mudou - atualiza o redux aqui na hora.
+      // porque o displayName mudou - atualiza o redux aqui na hora. Isso
+      // também troca o navigator pro app (ver navigation/index.tsx).
       dispatch(authSliceActions.setAuthUser(user));
-      // reset (não navigate) - a conta é real agora, ver LoginScreen.tsx
-      // pra explicação. Cast necessário pelo mesmo motivo de lá.
-      (navigation as unknown as NativeStackNavigationProp<ScreensTypes>).reset({
-        index: 0,
-        routes: [{ name: 'Home' }],
-      });
     } catch (err) {
       setError(mapAuthError(err));
     } finally {
@@ -68,7 +61,7 @@ function SignupScreen({ navigation }: SignupProps) {
   };
 
   return (
-    <GradientContainer colors={[colors.base.darkest, colors.auxiliary.black]}>
+    <GradientContainer colors={[colors.surface, colors.background]}>
       <SafeAreaView style={{ flex: 1 }}>
         {/* O `top` fixo do styled-component não é confiável sozinho aqui -
         // num filho com position:absolute dentro do SafeAreaView, em alguns
@@ -85,7 +78,7 @@ function SignupScreen({ navigation }: SignupProps) {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
             <Container>
-              <AppName variant="headlineSmall">Nome do App</AppName>
+              <AppName variant="headlineSmall">Duel Stars</AppName>
 
               <Title variant="headlineSmall">Criar conta</Title>
               <Subtitle variant="bodyMedium">Leva menos de um minuto.</Subtitle>
@@ -98,9 +91,9 @@ function SignupScreen({ navigation }: SignupProps) {
                 autoComplete="name"
                 value={name}
                 onChangeText={setName}
-                textColor={colors.auxiliary.white}
-                outlineColor={colors.transparency.opaque}
-                activeOutlineColor={colors.auxiliary.white}
+                textColor={colors.text.primary}
+                outlineColor={colors.border}
+                activeOutlineColor={colors.gold.main}
                 disabled={loading}
               />
               <Field
@@ -111,9 +104,9 @@ function SignupScreen({ navigation }: SignupProps) {
                 keyboardType="email-address"
                 value={email}
                 onChangeText={setEmail}
-                textColor={colors.auxiliary.white}
-                outlineColor={colors.transparency.opaque}
-                activeOutlineColor={colors.auxiliary.white}
+                textColor={colors.text.primary}
+                outlineColor={colors.border}
+                activeOutlineColor={colors.gold.main}
                 disabled={loading}
               />
               <Field
@@ -123,15 +116,13 @@ function SignupScreen({ navigation }: SignupProps) {
                 autoComplete="password-new"
                 value={password}
                 onChangeText={setPassword}
-                textColor={colors.auxiliary.white}
-                outlineColor={colors.transparency.opaque}
-                activeOutlineColor={colors.auxiliary.white}
+                textColor={colors.text.primary}
+                outlineColor={colors.border}
+                activeOutlineColor={colors.gold.main}
                 disabled={loading}
               />
 
-              <Button mode="contained" onPress={handleSignup} loading={loading} disabled={loading}>
-                Criar conta
-              </Button>
+              <Button label="Criar conta" onPress={handleSignup} loading={loading} />
 
               <FooterRow>
                 <FooterText variant="bodySmall">Já tem conta?</FooterText>

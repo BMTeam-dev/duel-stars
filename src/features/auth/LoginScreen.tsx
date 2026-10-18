@@ -1,18 +1,15 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ActivityIndicator, Button } from 'react-native-paper';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator } from 'react-native-paper';
 import { colors } from '../../configs/colors';
 import { LoginProps } from '../../navigation/props';
-import { ScreensTypes } from '../../navigation/screensTypes';
 import { signInWithEmail, signInWithGoogle, mapAuthError } from '../../services/auth/auth.service';
 import { analyticsService } from '../../services/analytics/analytics.service';
+import { Button } from '../../shared/ui/Button';
 import {
   GradientContainer,
   Container,
-  BackButton,
-  BackButtonIcon,
   AppName,
   Title,
   Subtitle,
@@ -26,11 +23,9 @@ import {
   FooterRow,
   FooterText,
   FooterLinkText,
-  SkipLinkText,
 } from './styles';
 
 function LoginScreen({ navigation }: LoginProps) {
-  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,32 +33,6 @@ function LoginScreen({ navigation }: LoginProps) {
   const [error, setError] = useState('');
 
   const busy = loading || googleLoading;
-
-  // Login é a primeira tela do app, mas também pode ser aberta de novo por
-  // cima de Home (ex: um botão "Criar conta" fixo pra quem escolheu
-  // continuar sem login antes) - só mostra botão de voltar/"continuar sem
-  // login" nesse segundo caso, já que na primeira vez não tem pra onde
-  // voltar. Se seu app não tiver modo anônimo, remova esse `canGoBack`/
-  // skipLogin e torne o login obrigatório.
-  const canGoBack = navigation.canGoBack();
-
-  const skipLogin = () => {
-    navigation.navigate('Home');
-  };
-
-  // Login/cadastro bem-sucedidos são diferentes: a conta é real agora, então
-  // reseta a pilha pra Home virar raiz - não faz sentido conseguir voltar
-  // pra Login depois de já estar autenticado de verdade. O cast é
-  // necessário porque o tipo composto de `navigation` (ver
-  // navigation/navigationTypes.ts) resolve `.reset()` pro formato do
-  // navigator externo "RootStack" (nunca criado de verdade - só o stack de
-  // ScreensTypes existe em navigation/index.tsx), não pro stack real.
-  const resetToHome = () => {
-    (navigation as unknown as NativeStackNavigationProp<ScreensTypes>).reset({
-      index: 0,
-      routes: [{ name: 'Home' }],
-    });
-  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -75,7 +44,6 @@ function LoginScreen({ navigation }: LoginProps) {
     try {
       await signInWithEmail(email.trim(), password);
       analyticsService.logLoginCompleted('email');
-      resetToHome();
     } catch (err) {
       setError(mapAuthError(err));
     } finally {
@@ -95,7 +63,6 @@ function LoginScreen({ navigation }: LoginProps) {
       } else {
         analyticsService.logLoginCompleted('google');
       }
-      resetToHome();
     } catch (err) {
       setError(mapAuthError(err));
     } finally {
@@ -104,16 +71,8 @@ function LoginScreen({ navigation }: LoginProps) {
   };
 
   return (
-    <GradientContainer colors={[colors.base.darkest, colors.auxiliary.black]}>
+    <GradientContainer colors={[colors.surface, colors.background]}>
       <SafeAreaView style={{ flex: 1 }}>
-        {canGoBack && (
-          // Soma `insets.top` de verdade (useSafeAreaInsets) em vez de
-          // confiar só no `top` fixo do styled-component - ver
-          // SignupScreen.tsx pra explicação completa.
-          <BackButton style={{ top: insets.top + 16 }} onPress={() => navigation.goBack()}>
-            <BackButtonIcon>‹</BackButtonIcon>
-          </BackButton>
-        )}
         {/* No Android, "adjustResize" no manifesto sozinho não é mais
         // suficiente com o layout edge-to-edge do Android 15+ - o teclado
         // fica flutuando por cima, cobrindo o final do formulário.
@@ -123,7 +82,7 @@ function LoginScreen({ navigation }: LoginProps) {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView keyboardShouldPersistTaps="handled">
             <Container>
-              <AppName variant="headlineSmall">Nome do App</AppName>
+              <AppName variant="headlineSmall">Duel Stars</AppName>
 
               <Title variant="headlineSmall">Entrar</Title>
               <Subtitle variant="bodyMedium">Entre com sua conta pra continuar.</Subtitle>
@@ -138,9 +97,9 @@ function LoginScreen({ navigation }: LoginProps) {
                 keyboardType="email-address"
                 value={email}
                 onChangeText={setEmail}
-                textColor={colors.auxiliary.white}
-                outlineColor={colors.transparency.opaque}
-                activeOutlineColor={colors.auxiliary.white}
+                textColor={colors.text.primary}
+                outlineColor={colors.border}
+                activeOutlineColor={colors.gold.main}
                 disabled={busy}
               />
               <Field
@@ -150,15 +109,13 @@ function LoginScreen({ navigation }: LoginProps) {
                 autoComplete="password"
                 value={password}
                 onChangeText={setPassword}
-                textColor={colors.auxiliary.white}
-                outlineColor={colors.transparency.opaque}
-                activeOutlineColor={colors.auxiliary.white}
+                textColor={colors.text.primary}
+                outlineColor={colors.border}
+                activeOutlineColor={colors.gold.main}
                 disabled={busy}
               />
 
-              <Button mode="contained" onPress={handleLogin} loading={loading} disabled={busy}>
-                Entrar
-              </Button>
+              <Button label="Entrar" onPress={handleLogin} loading={loading} disabled={busy} />
 
               <DividerRow>
                 <DividerLine />
@@ -168,7 +125,7 @@ function LoginScreen({ navigation }: LoginProps) {
 
               <GoogleButton onPress={handleGoogle} disabled={busy}>
                 {googleLoading ? (
-                  <ActivityIndicator color={colors.base.darkest} />
+                  <ActivityIndicator color={colors.background} />
                 ) : (
                   <GoogleButtonText variant="bodyMedium">Continuar com Google</GoogleButtonText>
                 )}
@@ -181,11 +138,6 @@ function LoginScreen({ navigation }: LoginProps) {
                 </FooterLinkText>
               </FooterRow>
 
-              {!canGoBack && (
-                <SkipLinkText variant="bodySmall" onPress={skipLogin} disabled={busy}>
-                  Continuar sem login
-                </SkipLinkText>
-              )}
             </Container>
           </ScrollView>
         </KeyboardAvoidingView>
