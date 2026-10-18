@@ -17,11 +17,12 @@ import { crashReportingService } from '../crashReporting/crashReporting.service'
 // Client ID "Web" (client_type 3), gerado automaticamente pelo Firebase ao
 // habilitar o provedor Google em Authentication > Sign-in method - é o mesmo
 // em Android e iOS (não é a chave por-plataforma). Não é segredo. Neste
-// projeto ele NÃO veio no google-services.json baixado, então foi copiado da
-// config do provedor Google (Authentication > Sign-in method > Google >
-// Web SDK configuration).
+// projeto (reaproveitado de 2019) o web client antigo tinha sido apagado e o
+// Google recusava o login com "Invalid audience value" - este foi criado à
+// mão em Credenciais do Google Cloud e registrado no provedor Google do
+// Firebase (Authentication > Sign-in method > Google > Web SDK configuration).
 const GOOGLE_WEB_CLIENT_ID =
-  '679249012112-1i6n3kcbdifg2bc3u468mtmnbos49d57.apps.googleusercontent.com';
+  '679249012112-9mn04d95oshci9tc6mrd91730j0hb22v.apps.googleusercontent.com';
 
 GoogleSignin.configure({
   webClientId: GOOGLE_WEB_CLIENT_ID,
