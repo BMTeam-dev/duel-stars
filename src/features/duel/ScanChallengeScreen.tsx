@@ -4,7 +4,6 @@ import { ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useIsFocused } from '@react-navigation/native';
 import { useCameraPermission } from 'react-native-vision-camera';
-import type { Barcode } from 'react-native-vision-camera-barcode-scanner';
 import styled from 'styled-components/native';
 import { colors } from '../../configs/colors';
 import { fontSize, radius, spacing } from '../../configs/theme';
@@ -32,7 +31,10 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 
 function ScanChallengeScreen({ navigation }: ScanChallengeProps) {
   const isFocused = useIsFocused();
-  const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
+  const { hasPermission, requestPermission } = useCameraPermission();
+  // A v4 não informa se ainda dá pra pedir; depois de uma recusa, o pedido
+  // não abre mais nada - aí o caminho é a tela de configurações.
+  const [denied, setDenied] = useState(false);
   const [step, setStep] = useState<Step>('scanning');
   const [token, setToken] = useState<string | null>(null);
   const [preview, setPreview] = useState<ChallengePreview | null>(null);
@@ -57,9 +59,9 @@ function ScanChallengeScreen({ navigation }: ScanChallengeProps) {
   }, []);
 
   const handleScanned = useCallback(
-    (barcodes: Barcode[]) => {
-      for (const barcode of barcodes) {
-        const scanned = tokenFromQr(barcode.rawValue);
+    (values: (string | undefined)[]) => {
+      for (const value of values) {
+        const scanned = tokenFromQr(value);
         if (scanned) {
           loadPreview(scanned);
           return;
@@ -135,8 +137,11 @@ function ScanChallengeScreen({ navigation }: ScanChallengeProps) {
         <PermissionBody>
           <Icon name="camera" size={56} color={colors.gold.main} />
           <PermissionText>Para ler o QR do desafio, o app precisa usar a câmera.</PermissionText>
-          {canRequestPermission ? (
-            <Button label="Permitir câmera" onPress={requestPermission} />
+          {!denied ? (
+            <Button
+              label="Permitir câmera"
+              onPress={async () => setDenied(!(await requestPermission()))}
+            />
           ) : (
             <Button label="Abrir configurações" variant="secondary" onPress={() => Linking.openSettings()} />
           )}

@@ -1,26 +1,24 @@
 import * as React from 'react';
 import { StyleSheet } from 'react-native';
-import { Camera, useCameraDevice } from 'react-native-vision-camera';
-import { useBarcodeScannerOutput, type Barcode } from 'react-native-vision-camera-barcode-scanner';
+import { Camera, useCameraDevice, useCodeScanner, type Code } from 'react-native-vision-camera';
 import styled from 'styled-components/native';
 import { colors } from '../../configs/colors';
 import { fontSize, spacing } from '../../configs/theme';
 
 type Props = {
   isActive: boolean;
-  onScanned: (barcodes: Barcode[]) => void;
+  onScanned: (values: (string | undefined)[]) => void;
   onError: () => void;
 };
 
-// No lugar do <CodeScanner> pronto da lib: ele lança erro quando ainda não
-// há câmera (lista carregando ou aparelho/emulador sem câmera) e derruba a
-// tela inteira. Aqui isso vira só uma mensagem.
+// VisionCamera 4 (e não a 5): a 5 só compila com o SDK do Xcode 26. O leitor
+// de QR já vem embutido (ML Kit no Android, AVFoundation no iOS). Sem câmera
+// (lista ainda carregando, aparelho/emulador sem câmera) vira só uma mensagem.
 export function QrScanner({ isActive, onScanned, onError }: Props) {
   const device = useCameraDevice('back');
-  const output = useBarcodeScannerOutput({
-    barcodeFormats: ['qr-code'],
-    onBarcodeScanned: onScanned,
-    onError,
+  const codeScanner = useCodeScanner({
+    codeTypes: ['qr'],
+    onCodeScanned: (codes: Code[]) => onScanned(codes.map(code => code.value)),
   });
 
   if (!device) {
@@ -31,7 +29,7 @@ export function QrScanner({ isActive, onScanned, onError }: Props) {
       style={StyleSheet.absoluteFill}
       isActive={isActive}
       device={device}
-      outputs={[output]}
+      codeScanner={codeScanner}
       onError={onError}
     />
   );
