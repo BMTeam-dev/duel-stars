@@ -8,6 +8,8 @@ export type UserProfile = {
   cityName: string;
   stateId: string;
   stars: number;
+  // Estrelas apostadas em duelos ainda não encerrados (ver functions/src/duels.ts).
+  lockedStars: number;
   wins: number;
   losses: number;
   streak: number;

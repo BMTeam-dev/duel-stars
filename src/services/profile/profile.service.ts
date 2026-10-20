@@ -130,6 +130,7 @@ function toProfile(uid: string, data: DocumentData): UserProfile {
     cityName: data.cityName,
     stateId: data.stateId,
     stars: data.stars ?? 0,
+    lockedStars: data.lockedStars ?? 0,
     wins: data.wins ?? 0,
     losses: data.losses ?? 0,
     streak: data.streak ?? 0,

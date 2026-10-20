@@ -9,20 +9,26 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Toaster } from 'sonner-native';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  NavigationContainerRef,
+  useNavigationContainerRef,
+} from '@react-navigation/native';
 import { Routes } from './navigation';
 import { store, persistor } from './redux/store';
 import { useAuthListener } from './services/auth/useAuthListener';
 import { useProfileListener } from './services/profile/useProfileListener';
+import { useNotifications } from './services/notifications/useNotifications';
 import { paperTheme } from './configs/paperTheme';
 import { analyticsService } from './services/analytics/analytics.service';
 import { ScreensTypes } from './navigation/screensTypes';
 import { DialogProvider } from './shared/ui/dialog/DialogProvider';
 import { colors } from './configs/colors';
 
-function AuthListener() {
+function AuthListener({ navigationRef }: { navigationRef: NavigationContainerRef<ScreensTypes> }) {
   useAuthListener();
   useProfileListener();
+  useNotifications(navigationRef);
   return null;
 }
 
@@ -72,7 +78,7 @@ export default function App() {
                 // pra poder usar hooks de navegação no conteúdo deles. */}
                 <BottomSheetModalProvider>
                   <DialogProvider>
-                    <AuthListener />
+                    <AuthListener navigationRef={navigationRef} />
                     <Routes />
                   </DialogProvider>
                 </BottomSheetModalProvider>

@@ -85,6 +85,41 @@ export const cancelChallenge = onCall<{ token: string }>(async request => {
   return { ok: true };
 });
 
+// O que a tela "Aceitar desafio" mostra antes do aceite: quem desafiou,
+// aposta, formato e o placar entre os dois. As regras não deixam o app ler
+// o desafio de outra pessoa direto, então passa por aqui.
+export const previewChallenge = onCall<{ token: string }>(async request => {
+  const uid = requireAuth(request.auth?.uid);
+  const snapshot = await challenges.doc(String(request.data?.token ?? '')).get();
+  if (!snapshot.exists) throw new HttpsError('not-found', 'Esse QR não é um desafio válido.');
+  const { creatorUid, stake, format, status, expiresAt } = snapshot.data()!;
+  if (status !== 'open') throw new HttpsError('failed-precondition', 'Esse desafio já foi usado ou cancelado.');
+  if ((expiresAt as Timestamp).toMillis() < Date.now()) {
+    throw new HttpsError('deadline-exceeded', 'Esse QR expirou. Peça para gerar outro.');
+  }
+  if (creatorUid === uid) throw new HttpsError('failed-precondition', 'Esse QR é seu. Mostre para o oponente escanear.');
+  const [creator, rival] = await Promise.all([
+    users.doc(creatorUid).get(),
+    users.doc(uid).collection('rivals').doc(creatorUid).get(),
+  ]);
+  return {
+    creator: {
+      uid: creatorUid,
+      nick: creator.get('nick'),
+      photoUrl: creator.get('photoUrl') ?? null,
+      cityName: creator.get('cityName'),
+      stateId: creator.get('stateId'),
+      wins: creator.get('wins') ?? 0,
+      losses: creator.get('losses') ?? 0,
+    },
+    stake,
+    format,
+    expiresAt: (expiresAt as Timestamp).toMillis(),
+    // Placar do ponto de vista de quem está aceitando.
+    headToHead: { wins: rival.get('wins') ?? 0, losses: rival.get('losses') ?? 0 },
+  };
+});
+
 export const acceptChallenge = onCall<{ token: string }>(async request => {
   const uid = requireAuth(request.auth?.uid);
   const token = String(request.data?.token ?? '');

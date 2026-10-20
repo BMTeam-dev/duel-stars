@@ -1,10 +1,12 @@
 import * as React from 'react';
 import { forwardRef } from 'react';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ScreensTypes } from '../../navigation/screensTypes';
 import { colors } from '../../configs/colors';
 import { AppSheet } from '../../shared/ui/AppSheet';
 import { Icon, IconName } from '../../shared/ui/Icon';
-import { toast } from '../../shared/ui/toast';
 import {
   OptionCard,
   OptionIcon,
@@ -21,21 +23,25 @@ type Option = {
   onPress: () => void;
 };
 
-// As duas portas de entrada de um duelo (ver "Fluxo do desafio" no doc do
-// MVP). Gerar/escanear QR entram na fase 2 - por enquanto só avisam.
+// As duas portas de entrada de um duelo (ver "Fluxo do desafio" no doc do MVP).
 export const ChallengeSheet = forwardRef<BottomSheetModal>((_, ref) => {
+  const navigation = useNavigation<NativeStackNavigationProp<ScreensTypes>>();
+  const open = (screen: 'CreateChallenge' | 'ScanChallenge') => {
+    (ref as React.RefObject<BottomSheetModal | null>).current?.dismiss();
+    navigation.navigate(screen);
+  };
   const options: Option[] = [
     {
       icon: 'qrcode',
       title: 'Gerar meu QR',
       subtitle: 'Defina a aposta e mostre o QR pro oponente',
-      onPress: () => toast('Gerar QR chega na próxima etapa'),
+      onPress: () => open('CreateChallenge'),
     },
     {
       icon: 'qrcode-scan',
       title: 'Escanear QR',
       subtitle: 'Leia o QR de quem te desafiou',
-      onPress: () => toast('Escanear QR chega na próxima etapa'),
+      onPress: () => open('ScanChallenge'),
     },
   ];
 

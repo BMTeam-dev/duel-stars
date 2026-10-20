@@ -10,6 +10,9 @@ import LoginScreen from '../features/auth/LoginScreen';
 import SignupScreen from '../features/auth/SignupScreen';
 import OnboardingScreen from '../features/onboarding/OnboardingScreen';
 import EditProfileScreen from '../features/profile/EditProfileScreen';
+import CreateChallengeScreen from '../features/duel/CreateChallengeScreen';
+import ScanChallengeScreen from '../features/duel/ScanChallengeScreen';
+import DuelScreen from '../features/duel/DuelScreen';
 
 const Stack = createNativeStackNavigator<ScreensTypes>();
 
@@ -36,6 +39,9 @@ export function Routes() {
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} />
+          <Stack.Screen name="ScanChallenge" component={ScanChallengeScreen} />
+          <Stack.Screen name="Duel" component={DuelScreen} options={{ gestureEnabled: false }} />
         </>
       ) : user ? (
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />

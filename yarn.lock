@@ -3238,6 +3238,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@react-native-firebase/functions@npm:26.4.0":
+  version: 26.4.0
+  resolution: "@react-native-firebase/functions@npm:26.4.0"
+  peerDependencies:
+    "@react-native-firebase/app": 26.4.0
+  checksum: 995394cef49abbf8bbaa5526299ba12449e10eba462571cc41640159bd01c446fe61dd850e475ab50c03c7bdfce37956e243455504ca0c3b24614d62f1ffcf60
+  languageName: node
+  linkType: hard
+
 "@react-native-firebase/messaging@npm:26.4.0":
   version: 26.4.0
   resolution: "@react-native-firebase/messaging@npm:26.4.0"
@@ -5299,6 +5308,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dijkstrajs@npm:^1.0.1":
+  version: 1.0.3
+  resolution: "dijkstrajs@npm:1.0.3"
+  checksum: 82ff2c6633f235dd5e6bed04ec62cdfb1f327b4d7534557bd52f18991313f864ee50654543072fff4384a92b643ada4d5452f006b7098dbdfad6c8744a8c9e08
+  languageName: node
+  linkType: hard
+
 "doctrine@npm:^2.1.0":
   version: 2.1.0
   resolution: "doctrine@npm:2.1.0"
@@ -5371,6 +5387,7 @@ __metadata:
     "@react-native-firebase/auth": ^26.4.0
     "@react-native-firebase/crashlytics": ^26.4.0
     "@react-native-firebase/firestore": 26.4.0
+    "@react-native-firebase/functions": 26.4.0
     "@react-native-firebase/messaging": 26.4.0
     "@react-native-google-signin/google-signin": ^16.1.5
     "@react-native-vector-icons/material-design-icons": ^13.1.4
@@ -5396,12 +5413,16 @@ __metadata:
     react-native-gesture-handler: ^3.3.0
     react-native-linear-gradient: ^2.8.3
     react-native-mmkv: ^4.3.2
+    react-native-nitro-image: ^0.15.2
     react-native-nitro-modules: ^0.37.1
     react-native-paper: ^5.15.3
+    react-native-qrcode-svg: ^6.3.26
     react-native-reanimated: ^4.7.1
     react-native-safe-area-context: ^5.9.1
     react-native-screens: ^4.28.0
     react-native-svg: ^15.16.0
+    react-native-vision-camera: ^5.2.3
+    react-native-vision-camera-barcode-scanner: ^5.2.3
     react-native-worklets: ^0.13.0
     react-redux: ^9.3.0
     react-test-renderer: 19.2.3
@@ -8907,6 +8928,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"pngjs@npm:^5.0.0":
+  version: 5.0.0
+  resolution: "pngjs@npm:5.0.0"
+  checksum: 04e912cc45fb9601564e2284efaf0c5d20d131d9b596244f8a6789fc6cdb6b18d2975a6bbf7a001858d7e159d5c5c5dd7b11592e97629b7137f7f5cef05904c8
+  languageName: node
+  linkType: hard
+
 "possible-typed-array-names@npm:^1.0.0, possible-typed-array-names@npm:^1.1.0":
   version: 1.1.0
   resolution: "possible-typed-array-names@npm:1.1.0"
@@ -8983,7 +9011,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prop-types@npm:^15.8.1":
+"prop-types@npm:^15.8.0, prop-types@npm:^15.8.1":
   version: 15.8.1
   resolution: "prop-types@npm:15.8.1"
   dependencies:
@@ -9024,6 +9052,19 @@ __metadata:
   version: 6.1.0
   resolution: "pure-rand@npm:6.1.0"
   checksum: 8d53bc02bed99eca0b65b505090152ee7e9bd67dd74f8ff32ba1c883b87234067c5bf68d2614759fb217d82594d7a92919e6df80f97885e7b12b42af4bd3316a
+  languageName: node
+  linkType: hard
+
+"qrcode@npm:^1.5.4":
+  version: 1.5.4
+  resolution: "qrcode@npm:1.5.4"
+  dependencies:
+    dijkstrajs: ^1.0.1
+    pngjs: ^5.0.0
+    yargs: ^15.3.1
+  bin:
+    qrcode: bin/qrcode
+  checksum: 0a162822e12c02b0333315462fd4ccad22255002130f86806773be7592aec5ef295efaffa3eb148cbf00e290839c7b610f63b0d62a0c5efc5bc52a68f4189684
   languageName: node
   linkType: hard
 
@@ -9192,6 +9233,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-native-nitro-image@npm:^0.15.2":
+  version: 0.15.2
+  resolution: "react-native-nitro-image@npm:0.15.2"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-nitro-modules: "*"
+  peerDependenciesMeta:
+    react-native-nitro-modules:
+      optional: true
+  checksum: 04313b5995c402e173ddea286f9a40777b69d7f2f36e6b7b4566acf4a7279de695320bab95f6a8cb199e5ac52bf609214c2bcb6c574c83cf71357f9a6f97e87e
+  languageName: node
+  linkType: hard
+
 "react-native-nitro-modules@npm:^0.37.1":
   version: 0.37.1
   resolution: "react-native-nitro-modules@npm:0.37.1"
@@ -9214,6 +9269,21 @@ __metadata:
     react-native: "*"
     react-native-safe-area-context: "*"
   checksum: b4469248f4e220e8b300e4080f3a0e4fae05a97f2eabec7165844876ac8fd6f8072509f0b5317cc51977d94a8ae2ce854d1e602db48e18290e07eefd8ccbdfdd
+  languageName: node
+  linkType: hard
+
+"react-native-qrcode-svg@npm:^6.3.26":
+  version: 6.3.26
+  resolution: "react-native-qrcode-svg@npm:6.3.26"
+  dependencies:
+    prop-types: ^15.8.0
+    qrcode: ^1.5.4
+    text-encoding: ^0.7.0
+  peerDependencies:
+    react: "*"
+    react-native: ">=0.63.4"
+    react-native-svg: ">=14.0.0"
+  checksum: 0fc72298934ce4ddf91de8d90ce98ac9d4d63209b4b14539949f5a232a86f296173930c3c301e8f53d097e8335963d73023b7aa292a4e43d331cd732eef877a7
   languageName: node
   linkType: hard
 
@@ -9273,6 +9343,37 @@ __metadata:
   peerDependencies:
     react-native: "*"
   checksum: 5582116d3e5ece5092e467877e0a99550b3d76a3b527456ee866da1fb97bf6d50ac91b8b5f5828da0e55a414ce9c3ea864eca0073fb6773130aa2785f9cd9652
+  languageName: node
+  linkType: hard
+
+"react-native-vision-camera-barcode-scanner@npm:^5.2.3":
+  version: 5.2.3
+  resolution: "react-native-vision-camera-barcode-scanner@npm:5.2.3"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-nitro-image: "*"
+    react-native-nitro-modules: "*"
+    react-native-vision-camera: "*"
+  peerDependenciesMeta:
+    react-native-nitro-modules:
+      optional: true
+  checksum: 8ff49a26bd1c4c49862076e16c0125d82eb01445819de9974263855d10558b9853a016e105e9fae06d806bd13f5ec0c0a833e49fa50f88b28c1c4ac50a3b3d87
+  languageName: node
+  linkType: hard
+
+"react-native-vision-camera@npm:^5.2.3":
+  version: 5.2.3
+  resolution: "react-native-vision-camera@npm:5.2.3"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-nitro-image: "*"
+    react-native-nitro-modules: "*"
+  peerDependenciesMeta:
+    react-native-nitro-modules:
+      optional: true
+  checksum: 5b8be90814e9f3e4e43f8ede7043cc6b306fac0f385fdef55cdb4454d6590099f8a6e4aaa4c643649893dc9743324c999d51882295929ed5528465baa460e49a
   languageName: node
   linkType: hard
 
@@ -10490,6 +10591,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"text-encoding@npm:^0.7.0":
+  version: 0.7.0
+  resolution: "text-encoding@npm:0.7.0"
+  checksum: b6109a843fb1b8748b32e1ecd6df74d370f46c13ac136bcb6ca15db70209bb0b8ec1f296ebb4b0dd9961150e205dcc044b89f8cf7657f6faef78c7569a2a81bc
+  languageName: node
+  linkType: hard
+
 "text-table@npm:^0.2.0":
   version: 0.2.0
   resolution: "text-table@npm:0.2.0"
@@ -11175,7 +11283,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yargs@npm:^15.1.0":
+"yargs@npm:^15.1.0, yargs@npm:^15.3.1":
   version: 15.4.1
   resolution: "yargs@npm:15.4.1"
   dependencies:

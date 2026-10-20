@@ -16,4 +16,7 @@ export type ScreensTypes = {
   Onboarding: undefined;
   MainTabs: NavigatorScreenParams<TabsTypes>;
   EditProfile: undefined;
+  CreateChallenge: undefined;
+  ScanChallenge: undefined;
+  Duel: { duelId: string };
 };
