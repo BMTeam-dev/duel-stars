@@ -9,11 +9,15 @@ import { Icon } from '../../shared/ui/Icon';
 
 type Props = {
   post: FeedPost;
+  myUid: string;
   winner: PublicProfile | undefined;
   loser: PublicProfile | undefined;
 };
 
-export function FeedPostItem({ post, winner, loser }: Props) {
+export function FeedPostItem({ post, myUid, winner, loser }: Props) {
+  // No post em que eu perdi, mostra o que EU perdi (−N, vermelho); nos
+  // outros, o que o vencedor ganhou.
+  const lost = post.loserUid === myUid;
   return (
     <Card>
       <Avatar name={winner?.nick ?? '?'} photoUrl={winner?.photoUrl ?? null} size={44} />
@@ -26,9 +30,12 @@ export function FeedPostItem({ post, winner, loser }: Props) {
           {winner ? ` · ${winner.cityName}` : ''}
         </Meta>
       </Body>
-      <Stars>
-        <Icon name="star-four-points" size={14} color={colors.gold.main} />
-        <StarsText>+{post.stars}</StarsText>
+      <Stars lost={lost}>
+        <Icon name="star-four-points" size={14} color={lost ? colors.feedback.negative : colors.gold.main} />
+        <StarsText lost={lost}>
+          {lost ? '−' : '+'}
+          {post.stars}
+        </StarsText>
       </Stars>
     </Card>
   );
@@ -65,17 +72,17 @@ const Meta = styled.Text`
   margin-top: 2px;
 `;
 
-const Stars = styled.View`
+const Stars = styled.View<{ lost: boolean }>`
   flex-direction: row;
   align-items: center;
   gap: 2px;
   padding: ${spacing.xs}px ${spacing.sm}px;
   border-radius: ${radius.sm}px;
-  background-color: ${colors.gold.soft};
+  background-color: ${({ lost }) => (lost ? 'rgba(255, 107, 94, 0.14)' : colors.gold.soft)};
 `;
 
-const StarsText = styled.Text`
-  color: ${colors.gold.main};
+const StarsText = styled.Text<{ lost: boolean }>`
+  color: ${({ lost }) => (lost ? colors.feedback.negative : colors.gold.main)};
   font-size: ${fontSize.body}px;
   font-weight: 800;
 `;

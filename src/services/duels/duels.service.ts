@@ -32,7 +32,7 @@ export function duelErrorMessage(error: unknown): string {
 }
 
 export const createChallenge = (stake: number, format: DuelFormat) =>
-  call<{ stake: number; format: DuelFormat }, { token: string; expiresAt: number }>(
+  call<{ stake: number; format: DuelFormat }, { token: string; code: string; expiresAt: number }>(
     'createChallenge',
     { stake, format },
   );
@@ -50,6 +50,13 @@ export const reportResult = (duelId: string, winnerUid: string) =>
     'reportResult',
     { duelId, winnerUid },
   );
+
+// Código curto digitado à mão (6 letras/números, ver functions/src/duels.ts).
+export const CHALLENGE_CODE_LENGTH = 6;
+
+export function normalizeChallengeCode(value: string): string {
+  return value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, CHALLENGE_CODE_LENGTH);
+}
 
 // O QR carrega um deep link; ler qualquer outro QR dá null.
 const QR_PREFIX = 'duelstars://c/';

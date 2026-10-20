@@ -21,7 +21,7 @@ import { Icon } from '../../shared/ui/Icon';
 import { toast } from '../../shared/ui/toast';
 import { ScreenHeader } from './ScreenHeader';
 
-type Challenge = { token: string; expiresAt: number };
+type Challenge = { token: string; code: string; expiresAt: number };
 
 function CreateChallengeScreen({ navigation }: CreateChallengeProps) {
   const profile = useAppSelector(state => state.profile.profile);
@@ -103,6 +103,8 @@ function CreateChallengeScreen({ navigation }: CreateChallengeProps) {
                 {minutes}:{seconds}
               </Countdown>
               <Hint>Mostre este QR para o seu oponente escanear em Desafiar → Escanear QR.</Hint>
+              <CodeLabel>Se a câmera não ler, ele pode digitar o código</CodeLabel>
+              <CodeValue selectable>{challenge.code}</CodeValue>
               <Waiting>
                 <Icon name="timer-sand" size={18} color={colors.text.secondary} />
                 <WaitingText>Esperando o oponente aceitar...</WaitingText>
@@ -281,6 +283,20 @@ const Countdown = styled.Text`
   font-size: 40px;
   font-weight: 800;
   margin-bottom: ${spacing.md}px;
+`;
+
+const CodeLabel = styled.Text`
+  color: ${colors.text.muted};
+  font-size: ${fontSize.caption}px;
+  margin-bottom: ${spacing.xs}px;
+`;
+
+const CodeValue = styled.Text`
+  color: ${colors.text.primary};
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 8px;
+  margin-bottom: ${spacing.xl}px;
 `;
 
 const Waiting = styled.View`

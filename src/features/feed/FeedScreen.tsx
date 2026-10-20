@@ -88,7 +88,12 @@ function FeedScreen({ navigation }: FeedProps) {
               paddingBottom: CHALLENGE_BUTTON_AREA + spacing.lg,
             }}
             renderItem={({ item }) => (
-              <FeedPostItem post={item} winner={profiles[item.winnerUid]} loser={profiles[item.loserUid]} />
+              <FeedPostItem
+                post={item}
+                myUid={profile?.uid ?? ''}
+                winner={profiles[item.winnerUid]}
+                loser={profiles[item.loserUid]}
+              />
             )}
             ListEmptyComponent={
               <EmptyState

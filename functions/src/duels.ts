@@ -37,6 +37,29 @@ function available(user: DocumentData): number {
   return (user.stars ?? 0) - (user.lockedStars ?? 0);
 }
 
+// Código curto mostrado embaixo do QR, pra digitar quando a câmera não lê.
+// Sem 0/O, 1/I/L pra não confundir na hora de digitar.
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const CODE_LENGTH = 6;
+
+function randomCode(): string {
+  const bytes = randomBytes(CODE_LENGTH);
+  return Array.from(bytes, byte => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join('');
+}
+
+// Aceita o token do QR ou o código curto; devolve sempre o token (id do doc).
+async function resolveToken(input: unknown): Promise<string> {
+  const value = String(input ?? '').trim();
+  if (value.length !== CODE_LENGTH) return value;
+  const found = await challenges
+    .where('code', '==', value.toUpperCase())
+    .where('status', '==', 'open')
+    .limit(1)
+    .get();
+  if (found.empty) throw new HttpsError('not-found', 'Nenhum desafio aberto com esse código.');
+  return found.docs[0].id;
+}
+
 function other(players: string[], uid: string): string {
   return players[0] === uid ? players[1] : players[0];
 }
@@ -61,7 +84,16 @@ export const createChallenge = onCall<{ stake: number; format: Format }>(async r
   // não servir de desafio depois.
   const token = randomBytes(15).toString('base64url');
   const expiresAt = Timestamp.fromMillis(Date.now() + RULES.challengeTtlMs);
+  // Código único entre os desafios abertos (abertos duram só 5 min, então
+  // colisão é rara; tenta de novo se acontecer).
+  let code = randomCode();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const clash = await challenges.where('code', '==', code).where('status', '==', 'open').limit(1).get();
+    if (clash.empty) break;
+    code = randomCode();
+  }
   await challenges.doc(token).set({
+    code,
     creatorUid: uid,
     stake,
     format,
@@ -69,7 +101,7 @@ export const createChallenge = onCall<{ stake: number; format: Format }>(async r
     createdAt: FieldValue.serverTimestamp(),
     expiresAt,
   });
-  return { token, expiresAt: expiresAt.toMillis() };
+  return { token, code, expiresAt: expiresAt.toMillis() };
 });
 
 export const cancelChallenge = onCall<{ token: string }>(async request => {
@@ -90,7 +122,7 @@ export const cancelChallenge = onCall<{ token: string }>(async request => {
 // o desafio de outra pessoa direto, então passa por aqui.
 export const previewChallenge = onCall<{ token: string }>(async request => {
   const uid = requireAuth(request.auth?.uid);
-  const snapshot = await challenges.doc(String(request.data?.token ?? '')).get();
+  const snapshot = await challenges.doc(await resolveToken(request.data?.token)).get();
   if (!snapshot.exists) throw new HttpsError('not-found', 'Esse QR não é um desafio válido.');
   const { creatorUid, stake, format, status, expiresAt } = snapshot.data()!;
   if (status !== 'open') throw new HttpsError('failed-precondition', 'Esse desafio já foi usado ou cancelado.');
@@ -122,7 +154,7 @@ export const previewChallenge = onCall<{ token: string }>(async request => {
 
 export const acceptChallenge = onCall<{ token: string }>(async request => {
   const uid = requireAuth(request.auth?.uid);
-  const token = String(request.data?.token ?? '');
+  const token = await resolveToken(request.data?.token);
   if (!token) throw new HttpsError('invalid-argument', 'QR inválido.');
 
   const duelRef = duels.doc();

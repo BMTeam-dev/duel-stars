@@ -11,7 +11,9 @@ import { fontSize, radius, spacing } from '../../configs/theme';
 import { ScanChallengeProps } from '../../navigation/props';
 import {
   acceptChallenge,
+  CHALLENGE_CODE_LENGTH,
   duelErrorMessage,
+  normalizeChallengeCode,
   previewChallenge,
   tokenFromQr,
 } from '../../services/duels/duels.service';
@@ -35,7 +37,7 @@ function ScanChallengeScreen({ navigation }: ScanChallengeProps) {
   const [token, setToken] = useState<string | null>(null);
   const [preview, setPreview] = useState<ChallengePreview | null>(null);
   const [accepting, setAccepting] = useState(false);
-  const [devCode, setDevCode] = useState('');
+  const [code, setCode] = useState('');
   // A câmera dispara vários frames com o mesmo QR - só o primeiro vale.
   const handlingRef = useRef(false);
 
@@ -155,21 +157,24 @@ function ScanChallengeScreen({ navigation }: ScanChallengeProps) {
           <CameraHint>Aponte para o QR na tela do oponente</CameraHint>
         </CameraBox>
       )}
-      {/* Emulador não tem câmera de verdade: em desenvolvimento dá pra colar
-      // o código do desafio pra testar o fluxo. */}
-      {__DEV__ && (
-        <DevBox>
-          <TextField label="Código do desafio (só em dev)" value={devCode} onChangeText={setDevCode} autoCapitalize="none" />
-          <Button
-            label="Usar código"
-            variant="secondary"
-            onPress={() => {
-              const scanned = tokenFromQr(devCode) ?? tokenFromQr(`duelstars://c/${devCode}`);
-              if (scanned) loadPreview(scanned);
-            }}
-          />
-        </DevBox>
-      )}
+      {/* Alternativa à câmera (QR com reflexo, tela trincada, câmera ruim):
+      // o código curto que aparece embaixo do QR do oponente. */}
+      <CodeBox>
+        <TextField
+          label="Não conseguiu ler? Digite o código"
+          value={code}
+          onChangeText={text => setCode(normalizeChallengeCode(text))}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={CHALLENGE_CODE_LENGTH}
+        />
+        <Button
+          label="Usar código"
+          variant="secondary"
+          disabled={code.length !== CHALLENGE_CODE_LENGTH || step !== 'scanning'}
+          onPress={() => loadPreview(code)}
+        />
+      </CodeBox>
     </Screen>
   );
 }
@@ -230,7 +235,7 @@ const CameraHint = styled.Text`
   font-weight: 600;
 `;
 
-const DevBox = styled.View`
+const CodeBox = styled.View`
   padding: 0 ${spacing.lg}px ${spacing.lg}px;
 `;
 
