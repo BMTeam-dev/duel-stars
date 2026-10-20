@@ -5,8 +5,9 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-# 15.5: mínimo do GoogleMLKit/BarcodeScanning (leitor de QR dos desafios).
-platform :ios, '15.5'
+# 16.0: os módulos Nitro (câmera/leitor de QR) usam a interoperabilidade
+# Swift/C++, que exige iOS 16; também cobre o mínimo do ML Kit (15.5).
+platform :ios, '16.0'
 prepare_react_native_project!
 
 # Firebase (React Native Firebase) no iOS exige frameworks estáticos - sem
@@ -34,5 +35,15 @@ target 'DuelStars' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+    # Pods que declaram um mínimo antigo herdam o do app - senão os Nitro
+    # falham ao compilar ("module 'CxxStdlib' has a minimum deployment
+    # target of iOS 16.0").
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 16.0
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+        end
+      end
+    end
   end
 end
