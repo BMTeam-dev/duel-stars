@@ -1,22 +1,28 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { colors } from '../../configs/colors';
 import { spacing } from '../../configs/theme';
 import { ProfileProps } from '../../navigation/props';
 import { useAppSelector } from '../../redux/store';
 import { mapAuthError, signOut } from '../../services/auth/auth.service';
+import { levelProgress, levelTitle } from '../../services/profile/level';
 import { Avatar } from '../../shared/ui/Avatar';
 import { Button } from '../../shared/ui/Button';
 import { useDialog } from '../../shared/ui/dialog/DialogProvider';
 import { Icon } from '../../shared/ui/Icon';
 import { toast } from '../../shared/ui/toast';
+import { LevelInfoSheet } from './components/LevelInfoSheet';
+import { LevelProgressCard } from './components/LevelProgressCard';
+import { MedalsRow } from './components/MedalsRow';
 import {
   CityRow,
   CityText,
   EditButton,
   Identity,
+  LevelText,
   Nick,
   SectionEmpty,
   SectionTitle,
@@ -37,8 +43,11 @@ function ProfileScreen({ navigation }: ProfileProps) {
   const profile = useAppSelector(state => state.profile.profile);
   const { showDialog } = useDialog();
   const [signingOut, setSigningOut] = useState(false);
+  const levelSheetRef = useRef<BottomSheetModal>(null);
 
   if (!profile) return null;
+
+  const progress = levelProgress(profile.wins, profile.losses);
 
   const handleSignOut = async () => {
     const confirmed = await showDialog({
@@ -74,6 +83,9 @@ function ProfileScreen({ navigation }: ProfileProps) {
         <Identity>
           <Avatar name={profile.nick} photoUrl={profile.photoUrl} size={88} />
           <Nick>@{profile.nick}</Nick>
+          <LevelText>
+            Nível {progress.level} · {levelTitle(progress.level)}
+          </LevelText>
           <CityRow>
             <Icon name="map-marker" size={16} color={colors.text.secondary} />
             <CityText>
@@ -93,6 +105,8 @@ function ProfileScreen({ navigation }: ProfileProps) {
           <StarsCaption>Aposte em desafios para ganhar mais e subir no ranking.</StarsCaption>
         </StarsCard>
 
+        <LevelProgressCard progress={progress} onInfo={() => levelSheetRef.current?.present()} />
+
         <StatsRow>
           <StatTile>
             <StatValue>{profile.wins}</StatValue>
@@ -109,7 +123,7 @@ function ProfileScreen({ navigation }: ProfileProps) {
         </StatsRow>
 
         <SectionTitle>Medalhas</SectionTitle>
-        <SectionEmpty>Vença seu primeiro duelo para ganhar a primeira medalha.</SectionEmpty>
+        <MedalsRow unlocked={[]} />
 
         <SectionTitle>Histórico</SectionTitle>
         <SectionEmpty>Seus duelos aparecem aqui.</SectionEmpty>
@@ -122,6 +136,8 @@ function ProfileScreen({ navigation }: ProfileProps) {
           onPress={handleSignOut}
         />
       </ScrollView>
+
+      <LevelInfoSheet ref={levelSheetRef} currentLevel={progress.level} />
     </SafeAreaView>
   );
 }

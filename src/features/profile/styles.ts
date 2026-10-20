@@ -36,6 +36,15 @@ export const Nick = styled.Text`
   margin-top: ${spacing.md}px;
 `;
 
+export const LevelText = styled.Text`
+  color: ${colors.gold.main};
+  font-size: ${fontSize.caption}px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: ${spacing.xs}px;
+`;
+
 export const CityRow = styled.View`
   flex-direction: row;
   align-items: center;

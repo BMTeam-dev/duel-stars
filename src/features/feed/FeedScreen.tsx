@@ -8,11 +8,12 @@ import { CHALLENGE_BUTTON_AREA, spacing } from '../../configs/theme';
 import { FeedProps } from '../../navigation/props';
 import { Button } from '../../shared/ui/Button';
 import { EmptyState } from '../../shared/ui/EmptyState';
+import { useAppSelector } from '../../redux/store';
 import { ChallengeSheet } from './ChallengeSheet';
+import { FeedHeader } from './FeedHeader';
 import {
   Container,
   Header,
-  Title,
   ScopeRow,
   ScopeChip,
   ScopeChipText,
@@ -21,15 +22,16 @@ import {
 
 type Scope = 'city' | 'global';
 
-function FeedScreen(_: FeedProps) {
+function FeedScreen({ navigation }: FeedProps) {
+  const profile = useAppSelector(state => state.profile.profile);
   const challengeSheetRef = useRef<BottomSheetModal>(null);
   const [scope, setScope] = useState<Scope>('city');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <Container>
+        {profile && <FeedHeader profile={profile} onPress={() => navigation.navigate('Profile')} />}
         <Header>
-          <Title>Feed</Title>
           <ScopeRow>
             <ScopeChip active={scope === 'city'} onPress={() => setScope('city')}>
               <ScopeChipText active={scope === 'city'}>Minha cidade</ScopeChipText>

@@ -11,13 +11,6 @@ export const Header = styled.View`
   padding: ${spacing.lg}px ${spacing.lg}px ${spacing.md}px;
 `;
 
-export const Title = styled.Text`
-  color: ${colors.text.primary};
-  font-size: ${fontSize.headline}px;
-  font-weight: 800;
-  margin-bottom: ${spacing.md}px;
-`;
-
 export const ScopeRow = styled.View`
   flex-direction: row;
   gap: ${spacing.sm}px;
