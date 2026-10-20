@@ -60,6 +60,25 @@ service cloud.firestore {
         );
     }
 
+    // Placar contra cada oponente - escrito só pelas Cloud Functions.
+    match /users/{uid}/rivals/{otherUid} {
+      allow read: if signedIn();
+    }
+
+    // Desafios (QR), duelos e feed são escritos só pelas Cloud Functions
+    // (functions/src/duels.ts); o app apenas lê.
+    match /challenges/{token} {
+      allow read: if signedIn() && resource.data.creatorUid == request.auth.uid;
+    }
+
+    match /duels/{duelId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.players;
+    }
+
+    match /feed/{postId} {
+      allow read: if signedIn();
+    }
+
     // Um doc por nick (id = nick em minúsculas) garante que ele é único.
     // Ao trocar de nick, o antigo fica com `releasedAt` e continua reservado
     // por 30 dias, pra ninguém se passar pelo jogador logo depois da troca.

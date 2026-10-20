@@ -133,3 +133,20 @@ novo.
   cadastro e depois só mudam via Cloud Functions - o app nunca escreve isso.
 - Perfil: `users/{uid}`; unicidade de nick: `nicks/{nickEmMinúsculas}`
   (ver `services/profile/profile.service.ts`).
+
+## Backend (Cloud Functions) e operação
+
+- Código em `functions/` (TypeScript, Node 22, região `southamerica-east1`).
+  Tudo que mexe em estrelas está em `functions/src/duels.ts`, em transação;
+  o app só chama as funções (`createChallenge`, `acceptChallenge`,
+  `reportResult`, `cancelChallenge`) e lê os docs.
+- Deploy é MANUAL (push no git não sobe nada):
+  `firebase deploy --only functions` (backend) e
+  `firebase deploy --only firestore` (regras + índices). Índice novo leva
+  alguns minutos para ficar utilizável depois do deploy.
+- Tarefas agendadas (Cloud Scheduler): `expireDuels` a cada hora (prazos de
+  24h/48h) e `weeklyRefill` toda segunda 6h.
+- Onde ver: Firestore (dados/regras/índices), Firebase > Functions (deploys,
+  logs), Cloud Scheduler (agendamentos), Firebase > Uso e faturamento.
+- Plano Blaze ativo; limpeza de imagens antigas das Functions configurada
+  (`firebase functions:artifacts:setpolicy`) pra não acumular custo.
