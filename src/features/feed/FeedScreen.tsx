@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { colors } from '../../configs/colors';
 import { CHALLENGE_BUTTON_AREA, spacing } from '../../configs/theme';
 import { FeedProps } from '../../navigation/props';
 import { Button } from '../../shared/ui/Button';
@@ -25,7 +26,7 @@ function FeedScreen(_: FeedProps) {
   const [scope, setScope] = useState<Scope>('city');
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <Container>
         <Header>
           <Title>Feed</Title>

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useEffect, useRef } from 'react';
+import { StatusBar } from 'react-native';
 import BootSplash from 'react-native-bootsplash';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -39,7 +40,9 @@ export default function App() {
   return (
     <Provider store={store}>
       <PersistGate persistor={persistor} loading={null}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+          {/* Ícones claros na status bar - o app é sempre escuro. */}
+          <StatusBar barStyle="light-content" />
           <SafeAreaProvider>
             <NavigationContainer
               ref={navigationRef}

@@ -1,9 +1,15 @@
 <resources>
 
     <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <!-- Customize your theme here. -->
+    <!-- Tema escuro fixo (o app não tem modo claro): com edge-to-edge o app
+         desenha por baixo da status bar, e o fundo da janela é o que aparece
+         ali enquanto/onde o React não pinta - com DayNight claro ele ficava
+         branco. windowLightStatusBar=false deixa os ícones da barra claros. -->
+    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
 </resources>
