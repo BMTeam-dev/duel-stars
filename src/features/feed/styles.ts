@@ -14,6 +14,7 @@ export const Header = styled.View`
 export const ScopeRow = styled.View`
   flex-direction: row;
   gap: ${spacing.sm}px;
+  margin-top: ${spacing.md}px;
 `;
 
 export const ScopeChip = styled.Pressable<{ active: boolean }>`

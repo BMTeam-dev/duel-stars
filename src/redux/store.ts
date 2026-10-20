@@ -46,7 +46,7 @@ const persistSettings: PersistConfig<AppRootState> = {
   storage: reduxStorage,
   stateReconciler: autoMergeLevel2,
   whitelist: ['persisted'],
-  transforms: [createWhitelistFilter('persisted', ['token'])],
+  transforms: [createWhitelistFilter('persisted', ['token', 'activeCategory'])],
 };
 
 const persistedReducers = persistReducer(persistSettings, reducers);

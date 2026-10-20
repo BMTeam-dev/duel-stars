@@ -16,7 +16,8 @@ import {
   previewChallenge,
   tokenFromQr,
 } from '../../services/duels/duels.service';
-import { ChallengePreview, FORMAT_LABEL } from '../../services/duels/duels.types';
+import { CATEGORY_LABEL, ChallengePreview, FORMAT_LABEL } from '../../services/duels/duels.types';
+import { useActiveCategory } from '../../services/profile/useActiveCategory';
 import { Avatar } from '../../shared/ui/Avatar';
 import { Button } from '../../shared/ui/Button';
 import { Icon } from '../../shared/ui/Icon';
@@ -29,7 +30,9 @@ type Step = 'scanning' | 'loading' | 'preview';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-function ScanChallengeScreen({ navigation }: ScanChallengeProps) {
+function ScanChallengeScreen({ navigation, route }: ScanChallengeProps) {
+  const codeOnly = route.params?.mode === 'code';
+  const { setCategory } = useActiveCategory();
   const isFocused = useIsFocused();
   const { hasPermission, requestPermission } = useCameraPermission();
   // A v4 não informa se ainda dá pra pedir; depois de uma recusa, o pedido
@@ -76,6 +79,8 @@ function ScanChallengeScreen({ navigation }: ScanChallengeProps) {
     setAccepting(true);
     try {
       const { duelId } = await acceptChallenge(token);
+      // O duelo é da categoria do desafio: o app passa a mostrar ela.
+      if (preview) setCategory(preview.category);
       navigation.replace('Duel', { duelId });
     } catch (error) {
       toast.error(duelErrorMessage(error));
@@ -109,7 +114,9 @@ function ScanChallengeScreen({ navigation }: ScanChallengeProps) {
             <StakeText>
               {preview.stake} {preview.stake === 1 ? 'estrela' : 'estrelas'}
             </StakeText>
-            <FormatText>{FORMAT_LABEL[preview.format]}</FormatText>
+            <FormatText>
+              {CATEGORY_LABEL[preview.category]} · {FORMAT_LABEL[preview.format]}
+            </FormatText>
           </StakeCard>
 
           <Meta>
@@ -132,8 +139,13 @@ function ScanChallengeScreen({ navigation }: ScanChallengeProps) {
 
   return (
     <Screen>
-      <ScreenHeader title="Escanear QR" onBack={() => navigation.goBack()} />
-      {!hasPermission ? (
+      <ScreenHeader title={codeOnly ? 'Digitar código' : 'Escanear QR'} onBack={() => navigation.goBack()} />
+      {codeOnly ? (
+        <CodeIntro>
+          <Icon name="keyboard" size={48} color={colors.gold.main} />
+          <PermissionText>Digite o código de 6 letras e números que o oponente te mandou.</PermissionText>
+        </CodeIntro>
+      ) : !hasPermission ? (
         <PermissionBody>
           <Icon name="camera" size={56} color={colors.gold.main} />
           <PermissionText>Para ler o QR do desafio, o app precisa usar a câmera.</PermissionText>
@@ -166,7 +178,7 @@ function ScanChallengeScreen({ navigation }: ScanChallengeProps) {
       // o código curto que aparece embaixo do QR do oponente. */}
       <CodeBox>
         <TextField
-          label="Não conseguiu ler? Digite o código"
+          label={codeOnly ? 'Código do desafio' : 'Não conseguiu ler? Digite o código'}
           value={code}
           onChangeText={text => setCode(normalizeChallengeCode(text))}
           autoCapitalize="characters"
@@ -201,6 +213,12 @@ const PermissionText = styled.Text`
   color: ${colors.text.secondary};
   font-size: ${fontSize.bodyLarge}px;
   text-align: center;
+`;
+
+const CodeIntro = styled.View`
+  align-items: center;
+  gap: ${spacing.lg}px;
+  padding: ${spacing.xxl}px ${spacing.xl}px;
 `;
 
 const CameraBox = styled.View`

@@ -9,6 +9,9 @@ import { ProfileProps } from '../../navigation/props';
 import { useAppSelector } from '../../redux/store';
 import { mapAuthError, signOut } from '../../services/auth/auth.service';
 import { levelProgress, levelTitle } from '../../services/profile/level';
+import { totalRecord } from '../../services/profile/profile.service';
+import { useActiveCategory } from '../../services/profile/useActiveCategory';
+import { CATEGORIES, CATEGORY_ICON, CATEGORY_LABEL } from '../../services/duels/duels.types';
 import { Avatar } from '../../shared/ui/Avatar';
 import { Button } from '../../shared/ui/Button';
 import { useDialog } from '../../shared/ui/dialog/DialogProvider';
@@ -28,6 +31,13 @@ import {
   SectionTitle,
   StarsCaption,
   StarsCard,
+  StarsCategory,
+  Wallets,
+  WalletName,
+  WalletRecord,
+  WalletRow,
+  WalletStars,
+  WalletStarsText,
   StarsLabel,
   StarsNumber,
   StarsRow,
@@ -44,10 +54,13 @@ function ProfileScreen({ navigation }: ProfileProps) {
   const { showDialog } = useDialog();
   const [signingOut, setSigningOut] = useState(false);
   const levelSheetRef = useRef<BottomSheetModal>(null);
+  const { category, setCategory } = useActiveCategory();
 
   if (!profile) return null;
 
-  const progress = levelProgress(profile.wins, profile.losses);
+  const total = totalRecord(profile);
+  const progress = levelProgress(total.wins, total.losses);
+  const wallet = profile.wallets[category];
 
   const handleSignOut = async () => {
     const confirmed = await showDialog({
@@ -95,29 +108,53 @@ function ProfileScreen({ navigation }: ProfileProps) {
         </Identity>
 
         {/* As estrelas são o centro do app: o que se aposta e o que define
-        // o ranking - por isso o maior destaque da tela. */}
+        // o ranking - por isso o maior destaque da tela. Uma carteira por
+        // categoria; o card grande é a da categoria ativa. */}
         <StarsCard>
+          <StarsCategory>{CATEGORY_LABEL[category]}</StarsCategory>
           <StarsRow>
             <Icon name="star-four-points" size={40} color={colors.gold.main} />
-            <StarsNumber>{profile.stars}</StarsNumber>
+            <StarsNumber>{wallet.stars}</StarsNumber>
           </StarsRow>
           <StarsLabel>estrelas</StarsLabel>
-          <StarsCaption>Aposte em desafios para ganhar mais e subir no ranking.</StarsCaption>
+          {wallet.lockedStars > 0 && (
+            <StarsCaption>{wallet.lockedStars} em jogo em duelos abertos</StarsCaption>
+          )}
         </StarsCard>
+
+        <Wallets>
+          {CATEGORIES.map(item => (
+            <WalletRow key={item} active={item === category} onPress={() => setCategory(item)}>
+              <Icon
+                name={CATEGORY_ICON[item]}
+                size={20}
+                color={item === category ? colors.gold.main : colors.text.secondary}
+              />
+              <WalletName active={item === category}>{CATEGORY_LABEL[item]}</WalletName>
+              <WalletRecord>
+                {profile.wallets[item].wins}V {profile.wallets[item].losses}D
+              </WalletRecord>
+              <WalletStars>
+                <Icon name="star-four-points" size={14} color={colors.gold.main} />
+                <WalletStarsText>{profile.wallets[item].stars}</WalletStarsText>
+              </WalletStars>
+            </WalletRow>
+          ))}
+        </Wallets>
 
         <LevelProgressCard progress={progress} onInfo={() => levelSheetRef.current?.present()} />
 
         <StatsRow>
           <StatTile>
-            <StatValue>{profile.wins}</StatValue>
+            <StatValue>{wallet.wins}</StatValue>
             <StatLabel>Vitórias</StatLabel>
           </StatTile>
           <StatTile>
-            <StatValue>{profile.losses}</StatValue>
+            <StatValue>{wallet.losses}</StatValue>
             <StatLabel>Derrotas</StatLabel>
           </StatTile>
           <StatTile>
-            <StatValue>{profile.streak}</StatValue>
+            <StatValue>{wallet.streak}</StatValue>
             <StatLabel>Sequência</StatLabel>
           </StatTile>
         </StatsRow>

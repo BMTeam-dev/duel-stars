@@ -8,7 +8,8 @@ import {
   type DocumentData,
 } from '@react-native-firebase/firestore';
 import { db } from '../firestore/db';
-import { City, INITIAL_STARS, NICK_CHANGE_INTERVAL_DAYS, UserProfile } from './profile.types';
+import { CATEGORIES } from '../duels/duels.types';
+import { City, INITIAL_STARS, NICK_CHANGE_INTERVAL_DAYS, UserProfile, Wallet } from './profile.types';
 
 const NICK_PATTERN = /^[a-z0-9_]{3,20}$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -65,15 +66,38 @@ export async function createProfile(uid: string, data: NewProfile): Promise<void
     stateId: data.city.stateId,
     notificationsEnabled: data.notificationsEnabled,
     fcmTokens: data.fcmToken ? [data.fcmToken] : [],
-    stars: INITIAL_STARS,
-    wins: 0,
-    losses: 0,
-    streak: 0,
-    bestStreak: 0,
+    // Mesmo formato exigido por firestore.rules (initialWallet).
+    wallets: Object.fromEntries(CATEGORIES.map(category => [category, newWallet()])),
     disputeCount: 0,
     createdAt: serverTimestamp(),
   });
   await batch.commit();
+}
+
+function newWallet(): Wallet {
+  return { stars: INITIAL_STARS, lockedStars: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0 };
+}
+
+function toWallet(data: DocumentData | undefined): Wallet {
+  return {
+    stars: data?.stars ?? 0,
+    lockedStars: data?.lockedStars ?? 0,
+    wins: data?.wins ?? 0,
+    losses: data?.losses ?? 0,
+    streak: data?.streak ?? 0,
+    bestStreak: data?.bestStreak ?? 0,
+  };
+}
+
+// Soma das carteiras - o nível (XP) é do duelista, não de um jogo.
+export function totalRecord(profile: UserProfile): { wins: number; losses: number } {
+  return CATEGORIES.reduce(
+    (total, category) => ({
+      wins: total.wins + profile.wallets[category].wins,
+      losses: total.losses + profile.wallets[category].losses,
+    }),
+    { wins: 0, losses: 0 },
+  );
 }
 
 // null = ainda pode trocar; número = millis a partir de quando poderá.
@@ -129,12 +153,11 @@ function toProfile(uid: string, data: DocumentData): UserProfile {
     cityId: data.cityId,
     cityName: data.cityName,
     stateId: data.stateId,
-    stars: data.stars ?? 0,
-    lockedStars: data.lockedStars ?? 0,
-    wins: data.wins ?? 0,
-    losses: data.losses ?? 0,
-    streak: data.streak ?? 0,
-    bestStreak: data.bestStreak ?? 0,
+    wallets: {
+      tcg: toWallet(data.wallets?.tcg),
+      md: toWallet(data.wallets?.md),
+      dl: toWallet(data.wallets?.dl),
+    },
     notificationsEnabled: !!data.notificationsEnabled,
     nickChangedAt: toMillis(data.nickChangedAt),
     createdAt: toMillis(data.createdAt),

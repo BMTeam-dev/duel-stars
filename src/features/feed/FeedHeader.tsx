@@ -2,7 +2,10 @@ import * as React from 'react';
 import styled from 'styled-components/native';
 import { colors } from '../../configs/colors';
 import { fontSize, radius, spacing } from '../../configs/theme';
+import { CATEGORY_LABEL } from '../../services/duels/duels.types';
 import { levelProgress, levelTitle } from '../../services/profile/level';
+import { totalRecord } from '../../services/profile/profile.service';
+import { useActiveCategory } from '../../services/profile/useActiveCategory';
 import { UserProfile } from '../../services/profile/profile.types';
 import { Avatar } from '../../shared/ui/Avatar';
 import { Icon } from '../../shared/ui/Icon';
@@ -12,10 +15,13 @@ type Props = {
   onPress: () => void;
 };
 
-// Identidade + saldo de estrelas no topo da tela principal: o saldo é o que
-// a pessoa aposta, então fica sempre à vista, sem precisar abrir o Perfil.
+// Identidade + saldo de estrelas da categoria ativa no topo da tela
+// principal: é o que a pessoa aposta, então fica sempre à vista.
 export function FeedHeader({ profile, onPress }: Props) {
-  const { level } = levelProgress(profile.wins, profile.losses);
+  const total = totalRecord(profile);
+  const { level } = levelProgress(total.wins, total.losses);
+  const { category } = useActiveCategory();
+  const wallet = profile.wallets[category];
   return (
     <Container onPress={onPress} accessibilityRole="button" accessibilityLabel="Abrir perfil">
       <Avatar name={profile.nick} photoUrl={profile.photoUrl} size={48} />
@@ -30,8 +36,11 @@ export function FeedHeader({ profile, onPress }: Props) {
         </LevelRow>
       </Info>
       <StarsPill>
-        <Icon name="star-four-points" size={18} color={colors.gold.main} />
-        <StarsValue>{profile.stars}</StarsValue>
+        <StarsRow>
+          <Icon name="star-four-points" size={18} color={colors.gold.main} />
+          <StarsValue>{wallet.stars}</StarsValue>
+        </StarsRow>
+        <StarsCategory>{CATEGORY_LABEL[category]}</StarsCategory>
       </StarsPill>
     </Container>
   );
@@ -87,14 +96,25 @@ const LevelTitle = styled.Text`
 `;
 
 const StarsPill = styled.View`
-  flex-direction: row;
   align-items: center;
-  gap: ${spacing.xs}px;
-  padding: ${spacing.sm}px ${spacing.md}px;
+  padding: ${spacing.xs}px ${spacing.md}px;
   border-radius: ${radius.md}px;
   border-width: 1px;
   border-color: ${colors.gold.dark};
   background-color: ${colors.gold.soft};
+`;
+
+const StarsRow = styled.View`
+  flex-direction: row;
+  align-items: center;
+  gap: ${spacing.xs}px;
+`;
+
+const StarsCategory = styled.Text`
+  color: ${colors.gold.main};
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
 `;
 
 const StarsValue = styled.Text`

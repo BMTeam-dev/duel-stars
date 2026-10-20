@@ -1,4 +1,5 @@
 import { UserProfile } from '../services/profile/profile.types';
+import type { Category } from '../services/duels/duels.types';
 
 // Só o que realmente precisa sobreviver a fechar/abrir o app entra aqui -
 // qualquer coisa recalculável (ex: `remaining`/`limit` de uma API) fica de
@@ -7,6 +8,9 @@ export type PersistedSlice = {
   // Exemplo de campo persistido - troque/expanda pelo que seu app precisa
   // lembrar entre sessões (ex: um token de auth, uma preferência de UI).
   token: string;
+  // Categoria "da vez" (TCG, Master Duel, Duel Links): feed, saldo e desafio
+  // seguem ela. Lembrada entre sessões.
+  activeCategory: Category;
 };
 
 export type MainSlice = {

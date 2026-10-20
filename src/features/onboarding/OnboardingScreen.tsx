@@ -161,7 +161,8 @@ function OnboardingScreen(_: OnboardingProps) {
             <StepSubtitle center>Você começa com</StepSubtitle>
             <StarsNumber>{INITIAL_STARS} estrelas</StarsNumber>
             <StepSubtitle center>
-              Desafie alguém, aposte estrelas e suba no ranking de {city?.name}.
+              em cada categoria: TCG, Master Duel e Duel Links. Desafie alguém, aposte estrelas e suba
+              no ranking de {city?.name}.
             </StepSubtitle>
           </>
         );

@@ -17,6 +17,7 @@ export type ScreensTypes = {
   MainTabs: NavigatorScreenParams<TabsTypes>;
   EditProfile: undefined;
   CreateChallenge: undefined;
-  ScanChallenge: undefined;
+  // 'code': só o campo do código, sem câmera (categorias online).
+  ScanChallenge: { mode?: 'camera' | 'code' } | undefined;
   Duel: { duelId: string };
 };

@@ -67,6 +67,57 @@ export const StarsCard = styled.View`
   margin-bottom: ${spacing.md}px;
 `;
 
+export const StarsCategory = styled.Text`
+  color: ${colors.text.secondary};
+  font-size: ${fontSize.caption}px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: ${spacing.xs}px;
+`;
+
+export const Wallets = styled.View`
+  gap: ${spacing.xs}px;
+  margin-bottom: ${spacing.md}px;
+`;
+
+export const WalletRow = styled.Pressable<{ active: boolean }>`
+  flex-direction: row;
+  align-items: center;
+  gap: ${spacing.md}px;
+  padding: ${spacing.md}px ${spacing.lg}px;
+  border-radius: ${radius.md}px;
+  border-width: 1px;
+  border-color: ${({ active }) => (active ? colors.gold.dark : colors.border)};
+  background-color: ${colors.surface};
+`;
+
+export const WalletName = styled.Text<{ active: boolean }>`
+  flex: 1;
+  color: ${({ active }) => (active ? colors.text.primary : colors.text.secondary)};
+  font-size: ${fontSize.bodyLarge}px;
+  font-weight: 700;
+`;
+
+export const WalletRecord = styled.Text`
+  color: ${colors.text.muted};
+  font-size: ${fontSize.caption}px;
+`;
+
+export const WalletStars = styled.View`
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  min-width: 48px;
+  justify-content: flex-end;
+`;
+
+export const WalletStarsText = styled.Text`
+  color: ${colors.gold.main};
+  font-size: ${fontSize.bodyLarge}px;
+  font-weight: 800;
+`;
+
 export const StarsRow = styled.View`
   flex-direction: row;
   align-items: center;

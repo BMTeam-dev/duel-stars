@@ -2,9 +2,10 @@ rules_version = '2';
 
 // Regras do banco `duel-start` (ver firebase.json). O app só escreve o que é
 // do próprio usuário e que não vale estrelas: perfil (nick, foto, cidade,
-// notificações) e a reserva do nick. Estrelas, vitórias e derrotas nascem
-// com valores fixos no cadastro e depois só mudam via Cloud Functions (que
-// ignoram estas regras) - um app modificado nunca consegue mexer no saldo.
+// notificações) e a reserva do nick. As carteiras (estrelas, vitórias e
+// derrotas por categoria) nascem com valores fixos no cadastro e depois só
+// mudam via Cloud Functions (que ignoram estas regras) - um app modificado
+// nunca consegue mexer no saldo.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
@@ -25,17 +26,19 @@ service cloud.firestore {
               'stateId', 'fcmTokens', 'notificationsEnabled'];
     }
 
+    // Carteira inicial de cada categoria (TCG, Master Duel, Duel Links).
+    function initialWallet() {
+      return {'stars': 20, 'lockedStars': 0, 'wins': 0, 'losses': 0, 'streak': 0, 'bestStreak': 0};
+    }
+
     match /users/{uid} {
       allow read: if signedIn();
 
       allow create: if signedIn() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(editableFields().concat([
-             'stars', 'wins', 'losses', 'streak', 'bestStreak', 'disputeCount', 'createdAt']))
-        && request.resource.data.stars == 20
-        && request.resource.data.wins == 0
-        && request.resource.data.losses == 0
-        && request.resource.data.streak == 0
-        && request.resource.data.bestStreak == 0
+             'wallets', 'disputeCount', 'createdAt']))
+        && request.resource.data.wallets == {
+             'tcg': initialWallet(), 'md': initialWallet(), 'dl': initialWallet()}
         && request.resource.data.disputeCount == 0
         && request.resource.data.createdAt == request.time
         && request.resource.data.nickChangedAt == null

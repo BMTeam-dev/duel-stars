@@ -16,11 +16,24 @@ import { notifyUser } from './notify';
 // regras do Firestore proíbem o app de escrever estrelas). Fluxo completo no
 // doc do MVP, seção "Fluxo do desafio".
 //
-// Estrelas apostadas ficam "travadas" (users.lockedStars) do aceite até o
-// fim do duelo: o saldo continua em `stars`, mas `stars - lockedStars` é o
-// que dá pra apostar em outro desafio ao mesmo tempo.
+// Cada categoria (TCG presencial, Master Duel, Duel Links) tem a sua carteira
+// em users.wallets.<categoria>: estrelas, vitórias, derrotas e sequência
+// separadas - um duelo só mexe na carteira da categoria dele.
+//
+// Estrelas apostadas ficam "travadas" (wallets.<cat>.lockedStars) do aceite
+// até o fim do duelo: o saldo continua em `stars`, mas `stars - lockedStars`
+// é o que dá pra apostar em outro desafio ao mesmo tempo.
 
 type Format = 'bo1' | 'bo3';
+type Category = 'tcg' | 'md' | 'dl';
+const CATEGORIES: Category[] = ['tcg', 'md', 'dl'];
+
+function isCategory(value: unknown): value is Category {
+  return CATEGORIES.includes(value as Category);
+}
+
+// Caminho de um campo da carteira, pra update com notação de ponto.
+const walletPath = (category: Category, field: string) => `wallets.${category}.${field}`;
 type DuelStatus = 'active' | 'awaiting' | 'disputed' | 'done' | 'cancelled';
 
 const users = db.collection('users');
@@ -33,8 +46,13 @@ function requireAuth(uid: string | undefined): string {
   return uid;
 }
 
-function available(user: DocumentData): number {
-  return (user.stars ?? 0) - (user.lockedStars ?? 0);
+function wallet(user: DocumentData, category: Category): DocumentData {
+  return user.wallets?.[category] ?? {};
+}
+
+function available(user: DocumentData, category: Category): number {
+  const w = wallet(user, category);
+  return (w.stars ?? 0) - (w.lockedStars ?? 0);
 }
 
 // Código curto mostrado embaixo do QR, pra digitar quando a câmera não lê.
@@ -47,26 +65,31 @@ function randomCode(): string {
   return Array.from(bytes, byte => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join('');
 }
 
+async function openWithCode(code: string): Promise<string | null> {
+  const found = await challenges.where('code', '==', code).where('status', '==', 'open').get();
+  const valid = found.docs.find(doc => (doc.get('expiresAt') as Timestamp).toMillis() > Date.now());
+  return valid?.id ?? null;
+}
+
 // Aceita o token do QR ou o código curto; devolve sempre o token (id do doc).
 async function resolveToken(input: unknown): Promise<string> {
   const value = String(input ?? '').trim();
   if (value.length !== CODE_LENGTH) return value;
-  const found = await challenges
-    .where('code', '==', value.toUpperCase())
-    .where('status', '==', 'open')
-    .limit(1)
-    .get();
-  if (found.empty) throw new HttpsError('not-found', 'Nenhum desafio aberto com esse código.');
-  return found.docs[0].id;
+  // Desafio expirado continua 'open' no banco (ninguém fecha), então o
+  // filtro de validade é aqui - senão um código antigo esconderia o novo.
+  const found = await openWithCode(value.toUpperCase());
+  if (!found) throw new HttpsError('not-found', 'Nenhum desafio aberto com esse código.');
+  return found;
 }
 
 function other(players: string[], uid: string): string {
   return players[0] === uid ? players[1] : players[0];
 }
 
-export const createChallenge = onCall<{ stake: number; format: Format }>(async request => {
+export const createChallenge = onCall<{ stake: number; format: Format; category: Category }>(async request => {
   const uid = requireAuth(request.auth?.uid);
-  const { stake, format } = request.data ?? {};
+  const { stake, format, category } = request.data ?? {};
+  if (!isCategory(category)) throw new HttpsError('invalid-argument', 'Categoria inválida.');
   if (!Number.isInteger(stake) || stake < RULES.minStake || stake > RULES.maxStake) {
     throw new HttpsError('invalid-argument', `A aposta vai de ${RULES.minStake} a ${RULES.maxStake} estrelas.`);
   }
@@ -76,7 +99,7 @@ export const createChallenge = onCall<{ stake: number; format: Format }>(async r
 
   const user = await users.doc(uid).get();
   if (!user.exists) throw new HttpsError('failed-precondition', 'Conclua seu cadastro antes de duelar.');
-  if (available(user.data()!) < stake) {
+  if (available(user.data()!, category) < stake) {
     throw new HttpsError('failed-precondition', 'Você não tem estrelas suficientes para essa aposta.');
   }
 
@@ -88,12 +111,12 @@ export const createChallenge = onCall<{ stake: number; format: Format }>(async r
   // colisão é rara; tenta de novo se acontecer).
   let code = randomCode();
   for (let attempt = 0; attempt < 5; attempt++) {
-    const clash = await challenges.where('code', '==', code).where('status', '==', 'open').limit(1).get();
-    if (clash.empty) break;
+    if (!(await openWithCode(code))) break;
     code = randomCode();
   }
   await challenges.doc(token).set({
     code,
+    category,
     creatorUid: uid,
     stake,
     format,
@@ -123,13 +146,14 @@ export const cancelChallenge = onCall<{ token: string }>(async request => {
 export const previewChallenge = onCall<{ token: string }>(async request => {
   const uid = requireAuth(request.auth?.uid);
   const snapshot = await challenges.doc(await resolveToken(request.data?.token)).get();
-  if (!snapshot.exists) throw new HttpsError('not-found', 'Esse QR não é um desafio válido.');
+  if (!snapshot.exists) throw new HttpsError('not-found', 'Desafio não encontrado. Confira o QR ou o código.');
   const { creatorUid, stake, format, status, expiresAt } = snapshot.data()!;
+  const category: Category = snapshot.get('category') ?? 'tcg';
   if (status !== 'open') throw new HttpsError('failed-precondition', 'Esse desafio já foi usado ou cancelado.');
   if ((expiresAt as Timestamp).toMillis() < Date.now()) {
-    throw new HttpsError('deadline-exceeded', 'Esse QR expirou. Peça para gerar outro.');
+    throw new HttpsError('deadline-exceeded', 'Esse desafio expirou. Peça para gerar outro.');
   }
-  if (creatorUid === uid) throw new HttpsError('failed-precondition', 'Esse QR é seu. Mostre para o oponente escanear.');
+  if (creatorUid === uid) throw new HttpsError('failed-precondition', 'Esse desafio é seu. Mande o código para o oponente.');
   const [creator, rival] = await Promise.all([
     users.doc(creatorUid).get(),
     users.doc(uid).collection('rivals').doc(creatorUid).get(),
@@ -141,11 +165,12 @@ export const previewChallenge = onCall<{ token: string }>(async request => {
       photoUrl: creator.get('photoUrl') ?? null,
       cityName: creator.get('cityName'),
       stateId: creator.get('stateId'),
-      wins: creator.get('wins') ?? 0,
-      losses: creator.get('losses') ?? 0,
+      wins: wallet(creator.data() ?? {}, category).wins ?? 0,
+      losses: wallet(creator.data() ?? {}, category).losses ?? 0,
     },
     stake,
     format,
+    category,
     expiresAt: (expiresAt as Timestamp).toMillis(),
     // Placar do ponto de vista de quem está aceitando.
     headToHead: { wins: rival.get('wins') ?? 0, losses: rival.get('losses') ?? 0 },
@@ -161,11 +186,12 @@ export const acceptChallenge = onCall<{ token: string }>(async request => {
   const result = await db.runTransaction(async tx => {
     const challengeRef = challenges.doc(token);
     const challenge = await tx.get(challengeRef);
-    if (!challenge.exists) throw new HttpsError('not-found', 'Esse QR não é um desafio válido.');
+    if (!challenge.exists) throw new HttpsError('not-found', 'Desafio não encontrado. Confira o QR ou o código.');
     const { creatorUid, stake, format, status, expiresAt } = challenge.data()!;
+    const category: Category = challenge.get('category') ?? 'tcg';
     if (status !== 'open') throw new HttpsError('failed-precondition', 'Esse desafio já foi usado ou cancelado.');
     if ((expiresAt as Timestamp).toMillis() < Date.now()) {
-      throw new HttpsError('deadline-exceeded', 'Esse QR expirou. Peça para gerar outro.');
+      throw new HttpsError('deadline-exceeded', 'Esse desafio expirou. Peça para gerar outro.');
     }
     if (creatorUid === uid) throw new HttpsError('failed-precondition', 'Você não pode aceitar o próprio desafio.');
 
@@ -175,10 +201,10 @@ export const acceptChallenge = onCall<{ token: string }>(async request => {
     ]);
     if (!acceptor.exists) throw new HttpsError('failed-precondition', 'Conclua seu cadastro antes de duelar.');
     if (!creator.exists) throw new HttpsError('not-found', 'Quem criou o desafio não existe mais.');
-    if (available(acceptor.data()!) < stake) {
+    if (available(acceptor.data()!, category) < stake) {
       throw new HttpsError('failed-precondition', `Você precisa de ${stake} estrelas livres para aceitar.`);
     }
-    if (available(creator.data()!) < stake) {
+    if (available(creator.data()!, category) < stake) {
       throw new HttpsError('failed-precondition', 'Quem te desafiou não tem mais estrelas para essa aposta.');
     }
 
@@ -203,14 +229,15 @@ export const acceptChallenge = onCall<{ token: string }>(async request => {
       players: [creatorUid, uid],
       stake,
       format,
+      category,
       status: 'active' as DuelStatus,
       reports: {},
       cityIds,
       createdAt: FieldValue.serverTimestamp(),
     });
     tx.update(challengeRef, { status: 'used', duelId: duelRef.id });
-    tx.update(users.doc(creatorUid), { lockedStars: FieldValue.increment(stake) });
-    tx.update(users.doc(uid), { lockedStars: FieldValue.increment(stake) });
+    tx.update(users.doc(creatorUid), { [walletPath(category, 'lockedStars')]: FieldValue.increment(stake) });
+    tx.update(users.doc(uid), { [walletPath(category, 'lockedStars')]: FieldValue.increment(stake) });
     return { creatorUid, acceptorNick: acceptor.get('nick') as string };
   });
 
@@ -245,22 +272,25 @@ function applyFinalize(
   const players = duel.players as string[];
   const loserUid = other(players, winnerUid);
   const stake = duel.stake as number;
+  const category: Category = duel.category ?? 'tcg';
   const winner = players[0] === winnerUid ? reads.userA : reads.userB;
+  const winnerWallet = wallet(winner.data() ?? {}, category);
   const now = FieldValue.serverTimestamp();
+  const path = (field: string) => walletPath(category, field);
 
-  const streak = (winner.get('streak') ?? 0) + 1;
+  const streak = (winnerWallet.streak ?? 0) + 1;
   tx.update(users.doc(winnerUid), {
-    stars: FieldValue.increment(stake),
-    lockedStars: FieldValue.increment(-stake),
-    wins: FieldValue.increment(1),
-    streak,
-    bestStreak: Math.max(streak, winner.get('bestStreak') ?? 0),
+    [path('stars')]: FieldValue.increment(stake),
+    [path('lockedStars')]: FieldValue.increment(-stake),
+    [path('wins')]: FieldValue.increment(1),
+    [path('streak')]: streak,
+    [path('bestStreak')]: Math.max(streak, winnerWallet.bestStreak ?? 0),
   });
   tx.update(users.doc(loserUid), {
-    stars: FieldValue.increment(-stake),
-    lockedStars: FieldValue.increment(-stake),
-    losses: FieldValue.increment(1),
-    streak: 0,
+    [path('stars')]: FieldValue.increment(-stake),
+    [path('lockedStars')]: FieldValue.increment(-stake),
+    [path('losses')]: FieldValue.increment(1),
+    [path('streak')]: 0,
   });
 
   // Placar entre os dois - base de "Meu Freguês" / "Minha Nêmesis".
@@ -285,6 +315,7 @@ function applyFinalize(
     loserUid,
     stars: stake,
     format: duel.format,
+    category,
     cityIds: duel.cityIds ?? [],
     createdAt: now,
   });
@@ -293,8 +324,9 @@ function applyFinalize(
 
 function applyCancel(tx: Transaction, duelRef: DocumentReference, duel: DocumentData) {
   const stake = duel.stake as number;
+  const category: Category = duel.category ?? 'tcg';
   for (const uid of duel.players as string[]) {
-    tx.update(users.doc(uid), { lockedStars: FieldValue.increment(-stake) });
+    tx.update(users.doc(uid), { [walletPath(category, 'lockedStars')]: FieldValue.increment(-stake) });
   }
   tx.update(duelRef, { status: 'cancelled' as DuelStatus, endedAt: FieldValue.serverTimestamp() });
 }
@@ -420,6 +452,17 @@ export const expireDuels = onSchedule(
       }
     }
 
+    // QR/código que ninguém usou fica 'open' pra sempre; some depois de 1 dia.
+    const staleChallenges = await challenges
+      .where('expiresAt', '<=', Timestamp.fromMillis(now - 24 * 60 * 60 * 1000))
+      .limit(400)
+      .get();
+    if (!staleChallenges.empty) {
+      const batch = db.batch();
+      staleChallenges.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    }
+
     for (const doc of [...disputed.docs, ...abandoned.docs]) {
       try {
         await db.runTransaction(async tx => {
@@ -440,12 +483,18 @@ export const expireDuels = onSchedule(
 export const weeklyRefill = onSchedule(
   { schedule: 'every monday 06:00', timeZone: 'America/Sao_Paulo' },
   async () => {
-    const low = await users.where('stars', '<', 3).get();
     const batch = db.batch();
-    low.docs
-      .filter(doc => (doc.get('lockedStars') ?? 0) === 0)
-      .forEach(doc => batch.update(doc.ref, { stars: 10 }));
+    let refilled = 0;
+    for (const category of CATEGORIES) {
+      const low = await users.where(walletPath(category, 'stars'), '<', 3).get();
+      low.docs
+        .filter(doc => (doc.get(walletPath(category, 'lockedStars')) ?? 0) === 0)
+        .forEach(doc => {
+          batch.update(doc.ref, { [walletPath(category, 'stars')]: 10 });
+          refilled += 1;
+        });
+    }
     await batch.commit();
-    logger.info('weeklyRefill', { refilled: low.size });
+    logger.info('weeklyRefill', { refilled });
   },
 );

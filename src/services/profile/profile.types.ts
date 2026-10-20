@@ -1,3 +1,16 @@
+import type { Category } from '../duels/duels.types';
+
+// Carteira de uma categoria: escrita só pelas Cloud Functions.
+export type Wallet = {
+  stars: number;
+  // Estrelas apostadas em duelos ainda não encerrados (ver functions/src/duels.ts).
+  lockedStars: number;
+  wins: number;
+  losses: number;
+  streak: number;
+  bestStreak: number;
+};
+
 // Formato do perfil como o app usa (datas em millis, pra caber no redux).
 // No Firestore ficam como Timestamp - ver toProfile() em profile.service.ts.
 export type UserProfile = {
@@ -7,13 +20,8 @@ export type UserProfile = {
   cityId: string;
   cityName: string;
   stateId: string;
-  stars: number;
-  // Estrelas apostadas em duelos ainda não encerrados (ver functions/src/duels.ts).
-  lockedStars: number;
-  wins: number;
-  losses: number;
-  streak: number;
-  bestStreak: number;
+  // Uma carteira por categoria (TCG, Master Duel, Duel Links).
+  wallets: Record<Category, Wallet>;
   notificationsEnabled: boolean;
   // null = nunca trocou o nick (a primeira troca é livre, ver firestore.rules).
   nickChangedAt: number | null;

@@ -11,6 +11,8 @@ import { crashReportingService } from '../../services/crashReporting/crashReport
 import { subscribeFeed, subscribeMyDuels } from '../../services/duels/duels.service';
 import { Duel, FeedPost } from '../../services/duels/duels.types';
 import { usePublicProfiles } from '../../services/profile/usePublicProfiles';
+import { useActiveCategory } from '../../services/profile/useActiveCategory';
+import { CategoryTabs } from './CategoryTabs';
 import { Button } from '../../shared/ui/Button';
 import { EmptyState } from '../../shared/ui/EmptyState';
 import { ActiveDuelBanner } from './ActiveDuelBanner';
@@ -29,15 +31,16 @@ function FeedScreen({ navigation }: FeedProps) {
   const [scope, setScope] = useState<Scope>('city');
   const [posts, setPosts] = useState<FeedPost[] | null>(null);
   const [myDuels, setMyDuels] = useState<Duel[]>([]);
+  const { category, setCategory } = useActiveCategory();
 
   const cityId = scope === 'city' ? profile?.cityId ?? null : null;
   useEffect(() => {
     setPosts(null);
-    return subscribeFeed(cityId, setPosts, error => {
+    return subscribeFeed(category, cityId, setPosts, error => {
       crashReportingService.recordError(error, 'subscribeFeed');
       setPosts([]);
     });
-  }, [cityId]);
+  }, [category, cityId]);
 
   const uid = profile?.uid;
   useEffect(() => {
@@ -57,6 +60,7 @@ function FeedScreen({ navigation }: FeedProps) {
       <Container>
         {profile && <FeedHeader profile={profile} onPress={() => navigation.navigate('Profile')} />}
         <Header>
+          <CategoryTabs value={category} onChange={setCategory} />
           <ScopeRow>
             <ScopeChip active={scope === 'city'} onPress={() => setScope('city')}>
               <ScopeChipText active={scope === 'city'}>{profile?.cityName ?? 'Minha cidade'}</ScopeChipText>

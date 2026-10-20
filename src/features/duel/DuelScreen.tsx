@@ -9,7 +9,13 @@ import { fontSize, radius, spacing } from '../../configs/theme';
 import { DuelProps } from '../../navigation/props';
 import { useAppSelector } from '../../redux/store';
 import { duelErrorMessage, reportResult, subscribeDuel } from '../../services/duels/duels.service';
-import { Duel, FORMAT_LABEL, PublicProfile } from '../../services/duels/duels.types';
+import {
+  CATEGORY_LABEL,
+  Duel,
+  FORMAT_LABEL,
+  isOnlineCategory,
+  PublicProfile,
+} from '../../services/duels/duels.types';
 import { usePublicProfiles } from '../../services/profile/usePublicProfiles';
 import { AppSheet } from '../../shared/ui/AppSheet';
 import { Avatar } from '../../shared/ui/Avatar';
@@ -95,7 +101,10 @@ function DuelScreen({ navigation, route }: DuelProps) {
   };
 
   const header = (
-    <ScreenHeader title={`Duelo · ${FORMAT_LABEL[duel.format]}`} onBack={() => navigation.goBack()} />
+    <ScreenHeader
+      title={`${CATEGORY_LABEL[duel.category]} · ${FORMAT_LABEL[duel.format]}`}
+      onBack={() => navigation.goBack()}
+    />
   );
 
   const versus = (
@@ -204,8 +213,18 @@ function DuelScreen({ navigation, route }: DuelProps) {
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
         {versus}
         {statusCard}
-        {duel.status === 'active' && !myReport && (
+        {duel.status === 'active' && !myReport && !isOnlineCategory(duel.category) && (
           <LifePoints myNick={me?.nick ?? 'Você'} opponentNick={opponent?.nick ?? 'Oponente'} />
+        )}
+        {/* Online o próprio jogo controla os LP: aqui só o lembrete. */}
+        {duel.status === 'active' && !myReport && isOnlineCategory(duel.category) && (
+          <StatusCard tone="neutral">
+            <Icon name={duel.category === 'md' ? 'monitor' : 'cellphone'} color={colors.text.secondary} />
+            <StatusText>
+              Joguem no {CATEGORY_LABEL[duel.category]}. Quando terminar, volte aqui e informe quem
+              venceu.
+            </StatusText>
+          </StatusCard>
         )}
       </ScrollView>
       <Footer>{footer}</Footer>

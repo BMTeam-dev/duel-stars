@@ -1,4 +1,26 @@
+import type { IconName } from '../../shared/ui/Icon';
+
 export type DuelFormat = 'bo1' | 'bo3';
+
+// Cada categoria tem carteira e ranking próprios (ver functions/src/duels.ts).
+export type Category = 'tcg' | 'md' | 'dl';
+export const CATEGORIES: Category[] = ['tcg', 'md', 'dl'];
+
+export const CATEGORY_LABEL: Record<Category, string> = {
+  tcg: 'TCG',
+  md: 'Master Duel',
+  dl: 'Duel Links',
+};
+
+export const CATEGORY_ICON: Record<Category, IconName> = {
+  tcg: 'cards-playing',
+  md: 'monitor',
+  dl: 'cellphone',
+};
+
+// Online: o desafio vai por código (WhatsApp/Discord) e o jogo já tem o
+// contador de LP - não faz sentido QR nem contador no app.
+export const isOnlineCategory = (category: Category) => category !== 'tcg';
 export type DuelStatus = 'active' | 'awaiting' | 'disputed' | 'done' | 'cancelled';
 
 export const FORMAT_LABEL: Record<DuelFormat, string> = {
@@ -15,6 +37,7 @@ export type Duel = {
   players: [string, string];
   stake: number;
   format: DuelFormat;
+  category: Category;
   status: DuelStatus;
   // uid de quem informou -> uid que essa pessoa disse que venceu.
   reports: Record<string, string>;
@@ -35,6 +58,7 @@ export type ChallengePreview = {
   };
   stake: number;
   format: DuelFormat;
+  category: Category;
   expiresAt: number;
   headToHead: { wins: number; losses: number };
 };
@@ -45,6 +69,7 @@ export type FeedPost = {
   loserUid: string;
   stars: number;
   format: DuelFormat;
+  category: Category;
   createdAt: number | null;
 };
 

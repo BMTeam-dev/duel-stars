@@ -11,7 +11,7 @@ import {
   type DocumentData,
 } from '@react-native-firebase/firestore';
 import { db } from '../firestore/db';
-import { ChallengePreview, Duel, DuelFormat, FeedPost } from './duels.types';
+import { Category, ChallengePreview, Duel, DuelFormat, FeedPost } from './duels.types';
 
 // Mesma região das Functions (functions/src/config.ts).
 const functions = getFunctions(getApp(), 'southamerica-east1');
@@ -31,11 +31,11 @@ export function duelErrorMessage(error: unknown): string {
   return message;
 }
 
-export const createChallenge = (stake: number, format: DuelFormat) =>
-  call<{ stake: number; format: DuelFormat }, { token: string; code: string; expiresAt: number }>(
-    'createChallenge',
-    { stake, format },
-  );
+export const createChallenge = (stake: number, format: DuelFormat, category: Category) =>
+  call<
+    { stake: number; format: DuelFormat; category: Category },
+    { token: string; code: string; expiresAt: number }
+  >('createChallenge', { stake, format, category });
 
 export const cancelChallenge = (token: string) => call('cancelChallenge', { token });
 
@@ -83,6 +83,8 @@ function toDuel(id: string, data: DocumentData): Duel {
     players: data.players,
     stake: data.stake,
     format: data.format,
+    // Duelos de antes das categorias eram todos TCG.
+    category: data.category ?? 'tcg',
     status: data.status,
     reports: data.reports ?? {},
     winnerUid: data.winnerUid ?? null,
@@ -124,14 +126,21 @@ export function subscribeMyDuels(uid: string, onChange: (duels: Duel[]) => void)
 }
 
 export function subscribeFeed(
+  category: Category,
   cityId: string | null,
   onChange: (posts: FeedPost[]) => void,
   onError: (error: Error) => void,
 ): () => void {
   const base = collection(db, 'feed');
   const q = cityId
-    ? query(base, where('cityIds', 'array-contains', cityId), orderBy('createdAt', 'desc'), limit(50))
-    : query(base, orderBy('createdAt', 'desc'), limit(50));
+    ? query(
+        base,
+        where('category', '==', category),
+        where('cityIds', 'array-contains', cityId),
+        orderBy('createdAt', 'desc'),
+        limit(50),
+      )
+    : query(base, where('category', '==', category), orderBy('createdAt', 'desc'), limit(50));
   return onSnapshot(
     q,
     snapshot =>
@@ -144,6 +153,7 @@ export function subscribeFeed(
             loserUid: data.loserUid,
             stars: data.stars,
             format: data.format,
+            category: data.category,
             createdAt: millis(data.createdAt),
           };
         }),

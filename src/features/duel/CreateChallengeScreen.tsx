@@ -1,13 +1,12 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import styled from 'styled-components/native';
 import { colors } from '../../configs/colors';
 import { fontSize, radius, spacing } from '../../configs/theme';
 import { CreateChallengeProps } from '../../navigation/props';
-import { useAppSelector } from '../../redux/store';
 import {
   cancelChallenge,
   challengeQrValue,
@@ -15,7 +14,15 @@ import {
   duelErrorMessage,
   subscribeChallenge,
 } from '../../services/duels/duels.service';
-import { DuelFormat, FORMAT_LABEL, MAX_STAKE, MIN_STAKE } from '../../services/duels/duels.types';
+import {
+  CATEGORY_LABEL,
+  DuelFormat,
+  FORMAT_LABEL,
+  isOnlineCategory,
+  MAX_STAKE,
+  MIN_STAKE,
+} from '../../services/duels/duels.types';
+import { useActiveCategory } from '../../services/profile/useActiveCategory';
 import { Button } from '../../shared/ui/Button';
 import { Icon } from '../../shared/ui/Icon';
 import { toast } from '../../shared/ui/toast';
@@ -24,8 +31,9 @@ import { ScreenHeader } from './ScreenHeader';
 type Challenge = { token: string; code: string; expiresAt: number };
 
 function CreateChallengeScreen({ navigation }: CreateChallengeProps) {
-  const profile = useAppSelector(state => state.profile.profile);
-  const freeStars = profile ? profile.stars - profile.lockedStars : 0;
+  const { category, wallet } = useActiveCategory();
+  const online = isOnlineCategory(category);
+  const freeStars = wallet ? wallet.stars - wallet.lockedStars : 0;
   const maxStake = Math.min(MAX_STAKE, freeStars);
 
   const [stake, setStake] = useState(Math.min(5, Math.max(maxStake, MIN_STAKE)));
@@ -56,7 +64,7 @@ function CreateChallengeScreen({ navigation }: CreateChallengeProps) {
   const handleCreate = async () => {
     setCreating(true);
     try {
-      const result = await createChallenge(stake, format);
+      const result = await createChallenge(stake, format, category);
       setNow(Date.now());
       setChallenge(result);
     } catch (error) {
@@ -72,7 +80,14 @@ function CreateChallengeScreen({ navigation }: CreateChallengeProps) {
     navigation.goBack();
   };
 
-  if (!profile) return null;
+  if (!wallet) return null;
+
+  const shareCode = (code: string) =>
+    Share.share({
+      message: `Te desafio no Duel Stars! ${stake} ${stake === 1 ? 'estrela' : 'estrelas'} no ${
+        CATEGORY_LABEL[category]
+      } (${FORMAT_LABEL[format]}). Abra o app, toque em Desafiar → Digitar código e use: ${code}`,
+    }).catch(() => undefined);
 
   if (challenge) {
     const minutes = Math.floor(secondsLeft / 60);
@@ -82,8 +97,15 @@ function CreateChallengeScreen({ navigation }: CreateChallengeProps) {
         <ScreenHeader title="Seu desafio" onBack={handleClose} backIcon="close" />
         <QrBody>
           <Summary>
-            {stake} {stake === 1 ? 'estrela' : 'estrelas'} · {FORMAT_LABEL[format]}
+            {stake} {stake === 1 ? 'estrela' : 'estrelas'} · {CATEGORY_LABEL[category]} · {FORMAT_LABEL[format]}
           </Summary>
+          {online ? (
+            // Online o oponente não está do lado: o código vai por mensagem.
+            <OnlineCode expired={expired}>
+              <CodeLabel>Código do desafio</CodeLabel>
+              <BigCode selectable>{challenge.code}</BigCode>
+            </OnlineCode>
+          ) : (
           <QrFrame expired={expired}>
             <QRCode
               value={challengeQrValue(challenge.token)}
@@ -92,19 +114,34 @@ function CreateChallengeScreen({ navigation }: CreateChallengeProps) {
               backgroundColor={colors.white}
             />
           </QrFrame>
+          )}
           {expired ? (
             <>
-              <Hint>Esse QR expirou.</Hint>
-              <Button label="Gerar outro QR" icon="refresh" onPress={() => setChallenge(null)} />
+              <Hint>Esse desafio expirou.</Hint>
+              <Button label="Gerar outro" icon="refresh" onPress={() => setChallenge(null)} />
             </>
           ) : (
             <>
               <Countdown>
                 {minutes}:{seconds}
               </Countdown>
-              <Hint>Mostre este QR para o seu oponente escanear em Desafiar → Escanear QR.</Hint>
-              <CodeLabel>Se a câmera não ler, ele pode digitar o código</CodeLabel>
-              <CodeValue selectable>{challenge.code}</CodeValue>
+              {online ? (
+                <>
+                  <Hint>
+                    Mande o código para o oponente. Ele digita em Desafiar → Digitar código, e vocês
+                    duelam no {CATEGORY_LABEL[category]}.
+                  </Hint>
+                  <ShareArea>
+                    <Button label="Compartilhar código" icon="share-variant" onPress={() => shareCode(challenge.code)} />
+                  </ShareArea>
+                </>
+              ) : (
+                <>
+                  <Hint>Mostre este QR para o seu oponente escanear em Desafiar → Escanear QR.</Hint>
+                  <CodeLabel>Se a câmera não ler, ele pode digitar o código</CodeLabel>
+                  <CodeValue selectable>{challenge.code}</CodeValue>
+                </>
+              )}
               <Waiting>
                 <Icon name="timer-sand" size={18} color={colors.text.secondary} />
                 <WaitingText>Esperando o oponente aceitar...</WaitingText>
@@ -120,7 +157,10 @@ function CreateChallengeScreen({ navigation }: CreateChallengeProps) {
 
   return (
     <Screen>
-      <ScreenHeader title="Gerar meu QR" onBack={() => navigation.goBack()} />
+      <ScreenHeader
+        title={`${online ? 'Gerar código' : 'Gerar meu QR'} · ${CATEGORY_LABEL[category]}`}
+        onBack={() => navigation.goBack()}
+      />
       <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
         <Label>Aposta</Label>
         {canChallenge ? (
@@ -165,12 +205,14 @@ function CreateChallengeScreen({ navigation }: CreateChallengeProps) {
             </FormatOption>
           ))}
         </FormatRow>
-        <Hint>Quem vencer leva as estrelas apostadas pelos dois. O QR vale por 5 minutos.</Hint>
+        <Hint>
+          Quem vencer leva as estrelas apostadas pelos dois. O {online ? 'código' : 'QR'} vale por 5 minutos.
+        </Hint>
       </ScrollView>
       <Footer>
         <Button
-          label="Gerar QR"
-          icon="qrcode"
+          label={online ? 'Gerar código' : 'Gerar QR'}
+          icon={online ? 'pound' : 'qrcode'}
           size="lg"
           disabled={!canChallenge}
           loading={creating}
@@ -296,6 +338,30 @@ const CodeValue = styled.Text`
   font-size: 32px;
   font-weight: 900;
   letter-spacing: 8px;
+  margin-bottom: ${spacing.xl}px;
+`;
+
+const OnlineCode = styled.View<{ expired: boolean }>`
+  align-self: stretch;
+  align-items: center;
+  padding: ${spacing.xl}px;
+  border-radius: ${radius.lg}px;
+  border-width: 1px;
+  border-color: ${colors.gold.dark};
+  background-color: ${colors.gold.soft};
+  opacity: ${({ expired }) => (expired ? 0.3 : 1)};
+  margin-bottom: ${spacing.xl}px;
+`;
+
+const BigCode = styled.Text`
+  color: ${colors.gold.main};
+  font-size: 44px;
+  font-weight: 900;
+  letter-spacing: 10px;
+`;
+
+const ShareArea = styled.View`
+  align-self: stretch;
   margin-bottom: ${spacing.xl}px;
 `;
 
