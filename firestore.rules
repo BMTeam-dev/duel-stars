@@ -120,6 +120,9 @@ service cloud.firestore {
       match /players/{playerUid} {
         allow read: if signedIn();
       }
+      match /matches/{matchId} {
+        allow read: if signedIn();
+      }
     }
 
     // Senha do torneio privado: só o organizador lê (pra repassar).

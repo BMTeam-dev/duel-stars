@@ -31,7 +31,10 @@ export function ActiveDuelBanner({ duel, myUid, onPress }: Props) {
       <Texts>
         <Title>{text}</Title>
         <Subtitle>
-          {duel.stake} {duel.stake === 1 ? 'estrela' : 'estrelas'} em jogo · toque para abrir
+          {duel.tournamentName
+            ? `Torneio ${duel.tournamentName}`
+            : `${duel.stake} ${duel.stake === 1 ? 'estrela' : 'estrelas'} em jogo`}{' '}
+          · toque para abrir
         </Subtitle>
       </Texts>
       <Icon name="chevron-right" color={colors.text.secondary} />

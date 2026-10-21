@@ -18,10 +18,20 @@ import { db } from '../firestore/db';
 
 const messaging = getMessaging();
 
-// Rotas que o backend manda em data.link (functions/src/duels.ts).
-function routeFromLink(link: unknown): { duelId: string } | null {
-  const match = typeof link === 'string' ? /^\/duel\/([A-Za-z0-9]+)$/.exec(link) : null;
-  return match ? { duelId: match[1] } : null;
+type Route = { screen: 'Duel'; params: { duelId: string } } | { screen: 'Tournament'; params: { tournamentId: string } };
+
+// Rotas que o backend manda em data.link (functions/src/duels.ts e tournaments.ts).
+function routeFromLink(link: unknown): Route | null {
+  if (typeof link !== 'string') return null;
+  const duel = /^\/duel\/([A-Za-z0-9]+)$/.exec(link);
+  if (duel) return { screen: 'Duel', params: { duelId: duel[1] } };
+  const tournament = /^\/tournament\/([A-Za-z0-9]+)$/.exec(link);
+  return tournament ? { screen: 'Tournament', params: { tournamentId: tournament[1] } } : null;
+}
+
+function go(navigationRef: NavigationContainerRef<ScreensTypes>, route: Route) {
+  if (route.screen === 'Duel') navigationRef.navigate('Duel', route.params);
+  else navigationRef.navigate('Tournament', route.params);
 }
 
 // Liga as notificações ao app: tocar numa notificação abre o duelo; com o
@@ -34,13 +44,13 @@ export function useNotifications(navigationRef: NavigationContainerRef<ScreensTy
   const uid = profile?.uid;
   const enabled = !!profile?.notificationsEnabled;
   // Notificação que abriu o app antes do perfil carregar - navega depois.
-  const pendingRef = useRef<{ duelId: string } | null>(null);
+  const pendingRef = useRef<Route | null>(null);
 
   useEffect(() => {
     const open = (link: unknown) => {
       const route = routeFromLink(link);
       if (!route) return;
-      if (navigationRef.isReady() && ready) navigationRef.navigate('Duel', route);
+      if (navigationRef.isReady() && ready) go(navigationRef, route);
       else pendingRef.current = route;
     };
     getInitialNotification(messaging).then(message => open(message?.data?.link));
@@ -58,7 +68,7 @@ export function useNotifications(navigationRef: NavigationContainerRef<ScreensTy
 
   useEffect(() => {
     if (ready && pendingRef.current && navigationRef.isReady()) {
-      navigationRef.navigate('Duel', pendingRef.current);
+      go(navigationRef, pendingRef.current);
       pendingRef.current = null;
     }
   }, [ready, navigationRef]);

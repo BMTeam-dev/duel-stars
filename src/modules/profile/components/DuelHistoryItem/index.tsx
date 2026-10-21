@@ -52,7 +52,7 @@ export function DuelHistoryItem({ duel, myUid, opponent, note, onPress }: Props)
       <Body>
         <Title numberOfLines={1}>vs @{opponent?.nick ?? '...'}</Title>
         <Meta numberOfLines={1}>
-          {CATEGORY_LABEL[duel.category]} · {FORMAT_LABEL[duel.format]}
+          {duel.tournamentName ?? CATEGORY_LABEL[duel.category]} · {FORMAT_LABEL[duel.format]}
           {status ? ` · ${status}` : duel.createdAt ? ` · ${timeAgo(duel.createdAt)}` : ''}
         </Meta>
         {!!note && (
@@ -64,14 +64,16 @@ export function DuelHistoryItem({ duel, myUid, opponent, note, onPress }: Props)
       </Body>
       <Stars outcome={outcome}>
         <Icon
-          name="star-four-points"
+          name={duel.tournamentId ? 'tournament' : 'star-four-points'}
           size={14}
           color={outcome === 'lost' ? colors.feedback.negative : outcome === 'won' ? colors.gold.main : colors.text.muted}
         />
-        <StarsText outcome={outcome}>
-          {outcome === 'won' ? '+' : outcome === 'lost' ? '−' : ''}
-          {duel.stake}
-        </StarsText>
+        {!duel.tournamentId && (
+          <StarsText outcome={outcome}>
+            {outcome === 'won' ? '+' : outcome === 'lost' ? '−' : ''}
+            {duel.stake}
+          </StarsText>
+        )}
       </Stars>
     </Card>
   );

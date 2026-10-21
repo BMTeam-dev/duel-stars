@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto';
 import {
   DocumentData,
   DocumentReference,
+  QueryDocumentSnapshot,
   FieldValue,
   Timestamp,
   Transaction,
@@ -31,6 +32,10 @@ const CATEGORIES: Category[] = ['tcg', 'md', 'dl'];
 function isCategory(value: unknown): value is Category {
   return CATEGORIES.includes(value as Category);
 }
+
+// -0 vira número decimal no Firestore (increment(-0) troca o tipo do campo
+// de inteiro pra double); partida de torneio tem aposta 0, então sempre isto.
+export const negate = (n: number) => (n === 0 ? 0 : -n);
 
 // Caminho de um campo da carteira, pra update com notação de ponto.
 const walletPath = (category: Category, field: string) => `wallets.${category}.${field}`;
@@ -251,7 +256,7 @@ export const acceptChallenge = onCall<{ token: string }>(async request => {
 
 // Lê tudo que o fim do duelo precisa ANTES de qualquer escrita (exigência
 // das transações do Firestore).
-async function readFinalizeData(tx: Transaction, players: string[]) {
+export async function readFinalizeData(tx: Transaction, players: string[]) {
   const [a, b] = players;
   const [userA, userB, rivalAB, rivalBA] = await Promise.all([
     tx.get(users.doc(a)),
@@ -262,7 +267,7 @@ async function readFinalizeData(tx: Transaction, players: string[]) {
   return { userA, userB, rivalAB, rivalBA };
 }
 
-function applyFinalize(
+export function applyFinalize(
   tx: Transaction,
   duelRef: DocumentReference,
   duel: DocumentData,
@@ -281,7 +286,7 @@ function applyFinalize(
   const streak = (winnerWallet.streak ?? 0) + 1;
   tx.update(users.doc(winnerUid), {
     [path('stars')]: FieldValue.increment(stake),
-    [path('lockedStars')]: FieldValue.increment(-stake),
+    [path('lockedStars')]: FieldValue.increment(negate(stake)),
     [path('wins')]: FieldValue.increment(1),
     [path('streak')]: streak,
     [path('bestStreak')]: Math.max(streak, winnerWallet.bestStreak ?? 0),
@@ -289,8 +294,8 @@ function applyFinalize(
     [path('ranked')]: true,
   });
   tx.update(users.doc(loserUid), {
-    [path('stars')]: FieldValue.increment(-stake),
-    [path('lockedStars')]: FieldValue.increment(-stake),
+    [path('stars')]: FieldValue.increment(negate(stake)),
+    [path('lockedStars')]: FieldValue.increment(negate(stake)),
     [path('losses')]: FieldValue.increment(1),
     [path('streak')]: 0,
     [path('ranked')]: true,
@@ -310,6 +315,10 @@ function applyFinalize(
 
   tx.update(duelRef, { status: 'done' as DuelStatus, winnerUid, loserUid, endedAt: now });
 
+  // Partida de torneio não vale estrelas: não vira post (o campeão vai pro
+  // feed quando o torneio acaba).
+  if (duel.tournamentId) return { loserUid, stake };
+
   // Feed guarda só uids: o app mostra sempre o nick atual de cada um.
   tx.set(feed.doc(), {
     type: 'win',
@@ -325,16 +334,18 @@ function applyFinalize(
   return { loserUid, stake };
 }
 
-function applyCancel(tx: Transaction, duelRef: DocumentReference, duel: DocumentData) {
+export function applyCancel(tx: Transaction, duelRef: DocumentReference, duel: DocumentData) {
   const stake = duel.stake as number;
   const category: Category = duel.category ?? 'tcg';
   for (const uid of duel.players as string[]) {
-    tx.update(users.doc(uid), { [walletPath(category, 'lockedStars')]: FieldValue.increment(-stake) });
+    tx.update(users.doc(uid), { [walletPath(category, 'lockedStars')]: FieldValue.increment(negate(stake)) });
   }
   tx.update(duelRef, { status: 'cancelled' as DuelStatus, endedAt: FieldValue.serverTimestamp() });
 }
 
 async function notifyDone(winnerUid: string, loserUid: string, stake: number, duelId: string) {
+  // Partida de torneio (aposta 0): quem avisa é o torneio, com a próxima rodada.
+  if (stake === 0) return;
   await Promise.all([
     notifyUser(winnerUid, {
       title: 'Vitória confirmada!',
@@ -445,6 +456,13 @@ export const expireDuels = onSchedule(
         .where('createdAt', '<=', Timestamp.fromMillis(now - RULES.abandonedWindowMs))
         .get(),
     ]);
+    // Partida de torneio segue o prazo da rodada (deadlineAt) ou, sem prazo,
+    // espera o organizador - nunca cai nos 48h de duelo abandonado/disputa.
+    const casual = (doc: QueryDocumentSnapshot) => !doc.get('tournamentId');
+    const overdue = await duels
+      .where('status', 'in', ['active', 'awaiting', 'disputed'])
+      .where('deadlineAt', '<=', Timestamp.fromMillis(now))
+      .get();
 
     for (const doc of awaiting.docs) {
       try {
@@ -473,7 +491,26 @@ export const expireDuels = onSchedule(
       await batch.commit();
     }
 
-    for (const doc of [...disputed.docs, ...abandoned.docs]) {
+    // Fim do prazo da rodada: com um informe, vale ele; sem, derrota dupla.
+    for (const doc of overdue.docs) {
+      try {
+        await db.runTransaction(async tx => {
+          const snapshot = await tx.get(doc.ref);
+          const duel = snapshot.data()!;
+          if (!['active', 'awaiting', 'disputed'].includes(duel.status)) return;
+          if (duel.status === 'awaiting') {
+            const reads = await readFinalizeData(tx, duel.players);
+            applyFinalize(tx, doc.ref, duel, Object.values(duel.reports ?? {})[0] as string, reads);
+          } else {
+            applyCancel(tx, doc.ref, duel);
+          }
+        });
+      } catch (error) {
+        logger.error('expireDuels: falha no prazo do torneio', { duelId: doc.id, error });
+      }
+    }
+
+    for (const doc of [...disputed.docs, ...abandoned.docs].filter(casual)) {
       try {
         await db.runTransaction(async tx => {
           const snapshot = await tx.get(doc.ref);

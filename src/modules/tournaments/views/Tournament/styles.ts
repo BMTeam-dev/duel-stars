@@ -160,3 +160,37 @@ export const Footer = styled.View`
   padding: ${spacing.lg}px ${spacing.xl}px;
   gap: ${spacing.sm}px;
 `;
+
+export const Champion = styled.View`
+  align-items: center;
+  gap: ${spacing.xs}px;
+  padding: ${spacing.xl}px;
+  border-radius: ${radius.lg}px;
+  border-width: 1px;
+  border-color: ${colors.gold.dark};
+  background-color: ${colors.gold.soft};
+`;
+
+export const ChampionLabel = styled.Text`
+  color: ${colors.gold.main};
+  font-size: ${fontSize.caption}px;
+  font-weight: 800;
+  text-transform: uppercase;
+`;
+
+export const ChampionName = styled.Text`
+  color: ${colors.text.primary};
+  font-size: ${fontSize.headline}px;
+  font-weight: 900;
+`;
+
+export const Rounds = styled.View`
+  gap: ${spacing.sm}px;
+`;
+
+export const RoundTitle = styled.Text`
+  color: ${colors.text.secondary};
+  font-size: ${fontSize.caption}px;
+  font-weight: 800;
+  text-transform: uppercase;
+`;

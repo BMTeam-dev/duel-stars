@@ -23,6 +23,7 @@ import {
   isOnlineCategory,
   PublicProfile,
 } from '../../../../services/duels/duels.types';
+import { roundLabel } from '../../../../services/tournaments/tournaments.types';
 import { usePublicProfiles } from '../../../../services/profile/usePublicProfiles';
 import { AppSheet } from '../../../../shared/ui/AppSheet';
 import { Avatar } from '../../../../shared/ui/Avatar';
@@ -153,7 +154,7 @@ function DuelScreen({ navigation, route }: DuelProps) {
       message: `Você vai concordar que ${
         iLose ? nickOf(winnerUid) : 'você'
       } venceu. O duelo fecha na hora${
-        iLose
+        iLose && !duel.tournamentId
           ? ` e você perde ${duel.stake} ${
               duel.stake === 1 ? 'estrela' : 'estrelas'
             }.`
@@ -168,7 +169,11 @@ function DuelScreen({ navigation, route }: DuelProps) {
 
   const header = (
     <ScreenHeader
-      title={`${CATEGORY_LABEL[duel.category]} · ${FORMAT_LABEL[duel.format]}`}
+      title={
+        duel.tournamentName
+          ? `${duel.tournamentName} · ${FORMAT_LABEL[duel.format]}`
+          : `${CATEGORY_LABEL[duel.category]} · ${FORMAT_LABEL[duel.format]}`
+      }
       onBack={() => navigation.goBack()}
     />
   );
@@ -183,11 +188,20 @@ function DuelScreen({ navigation, route }: DuelProps) {
         />
         <PlayerNick numberOfLines={1}>@{me?.nick ?? '...'}</PlayerNick>
       </Player>
-      <Stake>
-        <Icon name="star-four-points" size={22} color={colors.gold.main} />
-        <StakeValue>{duel.stake}</StakeValue>
-        <StakeLabel>em jogo</StakeLabel>
-      </Stake>
+      {duel.tournamentId ? (
+        <Stake>
+          <Icon name="tournament" size={22} color={colors.gold.main} />
+          <StakeLabel>
+            {roundLabel(duel.round ?? 1, duel.rounds ?? 1)}
+          </StakeLabel>
+        </Stake>
+      ) : (
+        <Stake>
+          <Icon name="star-four-points" size={22} color={colors.gold.main} />
+          <StakeValue>{duel.stake}</StakeValue>
+          <StakeLabel>em jogo</StakeLabel>
+        </Stake>
+      )}
       <Player>
         <Avatar
           name={opponent?.nick ?? '?'}
@@ -232,7 +246,13 @@ function DuelScreen({ navigation, route }: DuelProps) {
                 {cancelled ? 'Duelo cancelado' : won ? 'Vitória!' : 'Derrota'}
               </ResultTitle>
               <ResultStars won={won && !cancelled}>
-                {cancelled
+                {duel.tournamentId
+                  ? cancelled
+                    ? 'Derrota dupla: os dois saem do torneio.'
+                    : won
+                    ? 'Você avança no torneio!'
+                    : 'Fim da linha neste torneio.'
+                  : cancelled
                   ? 'As estrelas apostadas voltaram.'
                   : `${won ? '+' : '−'}${duel.stake} estrelas`}
               </ResultStars>
@@ -388,9 +408,13 @@ function DuelScreen({ navigation, route }: DuelProps) {
                 {/* Pra se adicionarem no jogo sem sair do app. */}
                 <GameIdRow
                   game={duel.category as 'md' | 'dl'}
-                  label={`ID de @${opponent?.nick ?? '...'} no ${CATEGORY_LABEL[duel.category]}`}
+                  label={`ID de @${opponent?.nick ?? '...'} no ${
+                    CATEGORY_LABEL[duel.category]
+                  }`}
                   id={opponent?.gameIds[duel.category as 'md' | 'dl']}
-                  emptyText={`@${opponent?.nick ?? '...'} ainda não cadastrou o ID`}
+                  emptyText={`@${
+                    opponent?.nick ?? '...'
+                  } ainda não cadastrou o ID`}
                 />
               </>
             )}

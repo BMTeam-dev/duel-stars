@@ -91,6 +91,10 @@ function toDuel(id: string, data: DocumentData): Duel {
     winnerUid: data.winnerUid ?? null,
     loserUid: data.loserUid ?? null,
     createdAt: millis(data.createdAt),
+    tournamentId: data.tournamentId ?? null,
+    tournamentName: data.tournamentName ?? null,
+    round: data.round ?? null,
+    rounds: data.rounds ?? null,
   };
 }
 

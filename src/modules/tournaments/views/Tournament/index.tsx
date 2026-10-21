@@ -12,22 +12,30 @@ import { CATEGORY_ICON, CATEGORY_LABEL, FORMAT_LABEL } from '../../../../service
 import { usePublicProfiles } from '../../../../services/profile/usePublicProfiles';
 import {
   cancelTournament,
+  checkInTournament,
   getTournamentPassword,
   joinTournament,
   leaveTournament,
   needsGameId,
+  resolveMatch,
   setPlayerPaid,
+  startTournament,
+  subscribeMatches,
   subscribeTournament,
   subscribeTournamentPlayers,
 } from '../../../../services/tournaments/tournaments.service';
 import {
+  CHECKIN_WINDOW_MS,
   formatMoney,
   formatStart,
+  roundLabel,
   roundDeadlineLabel,
   Tournament,
   TOURNAMENT_FORMAT_LABEL,
+  TournamentMatch,
   TournamentPlayer,
 } from '../../../../services/tournaments/tournaments.types';
+import { MatchRow } from '../../components/MatchRow';
 import { AppSheet } from '../../../../shared/ui/AppSheet';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Button } from '../../../../shared/ui/Button';
@@ -38,6 +46,11 @@ import { TextField } from '../../../../shared/ui/TextField';
 import { toast } from '../../../../shared/ui/toast';
 import {
   Center,
+  Champion,
+  ChampionName,
+  ChampionLabel,
+  Rounds,
+  RoundTitle,
   CopyChip,
   CopyChipText,
   Description,
@@ -84,10 +97,14 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   const [password, setPassword] = useState<string | null>(null);
   const [typedPassword, setTypedPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [matches, setMatches] = useState<TournamentMatch[]>([]);
+  const [resolving, setResolving] = useState<TournamentMatch | null>(null);
   const passwordSheetRef = useRef<BottomSheetModal>(null);
+  const resolveSheetRef = useRef<BottomSheetModal>(null);
 
   useEffect(() => subscribeTournament(tournamentId, setT), [tournamentId]);
   useEffect(() => subscribeTournamentPlayers(tournamentId, setPlayers), [tournamentId]);
+  useEffect(() => subscribeMatches(tournamentId, setMatches), [tournamentId]);
 
   const isOrganizer = !!t && t.organizerUid === uid;
   const isPrivate = t?.visibility === 'private';
@@ -95,7 +112,14 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     if (isOrganizer && isPrivate) getTournamentPassword(tournamentId).then(setPassword).catch(() => undefined);
   }, [isOrganizer, isPrivate, tournamentId]);
 
-  const uids = useMemo(() => [...players.map(p => p.uid), ...(t ? [t.organizerUid] : [])], [players, t]);
+  const uids = useMemo(
+    () => [
+      ...players.map(p => p.uid),
+      ...matches.flatMap(m => m.players.filter((p): p is string => !!p)),
+      ...(t ? [t.organizerUid] : []),
+    ],
+    [players, matches, t],
+  );
   const profiles = usePublicProfiles(uids);
 
   if (t === undefined) {
@@ -119,6 +143,11 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
 
   const joined = t.playerUids.includes(uid);
   const open = t.status === 'open' && t.startsAt > Date.now();
+  const checkinOpen = t.status === 'open' && Date.now() >= t.startsAt - CHECKIN_WINDOW_MS;
+  const me = players.find(p => p.uid === uid);
+  const checkedInCount = players.filter(p => p.checkedIn).length;
+  const myMatch = matches.find(m => m.status === 'active' && m.players.includes(uid));
+  const rounds = t.rounds ?? 0;
   const full = t.playerCount >= t.maxPlayers;
   const organizer = profiles[t.organizerUid];
 
@@ -221,14 +250,80 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
         onPress={() => (isPrivate && !isOrganizer ? passwordSheetRef.current?.present() : join(password ?? undefined))}
       />
     );
-  } else if (open && joined) {
-    footer = <Button label="Sair do torneio" variant="ghost" loading={busy} onPress={leave} />;
+  } else if (t.status === 'open' && joined) {
+    footer = (
+      <>
+        {checkinOpen && !me?.checkedIn && (
+          <Button
+            label="Fazer check-in"
+            icon="check-circle"
+            size="lg"
+            loading={busy}
+            onPress={() => run(() => checkInTournament(t.id), 'Check-in feito')}
+          />
+        )}
+        {checkinOpen && me?.checkedIn && (
+          <Button label="Check-in feito · aguardando o início" icon="check-circle" variant="secondary" disabled onPress={() => undefined} />
+        )}
+        <Button label="Sair do torneio" variant="ghost" loading={busy} onPress={leave} />
+      </>
+    );
+  } else if (myMatch?.duelId) {
+    footer = (
+      <Button
+        label="Ir para minha partida"
+        icon="sword-cross"
+        size="lg"
+        onPress={() => navigation.navigate('Duel', { duelId: myMatch.duelId! })}
+      />
+    );
   }
+
+  const start = async () => {
+    const ok = await showDialog({
+      icon: 'play-circle',
+      title: 'Iniciar o torneio?',
+      message: `${checkedInCount} ${
+        checkedInCount === 1 ? 'jogador fez' : 'jogadores fizeram'
+      } check-in. Quem não fez sai do torneio e recebe as estrelas de volta.`,
+      confirmLabel: 'Iniciar',
+      cancelLabel: 'Voltar',
+    });
+    if (ok) run(() => startTournament(t.id), 'Torneio iniciado');
+  };
+
+  const openMatch = (match: TournamentMatch) => {
+    if (match.players.includes(uid) && match.duelId) {
+      navigation.navigate('Duel', { duelId: match.duelId });
+    } else if (isOrganizer && match.status === 'active') {
+      setResolving(match);
+      resolveSheetRef.current?.present();
+    }
+  };
+
+  const resolve = async (winnerUid: string | null) => {
+    if (!resolving) return;
+    resolveSheetRef.current?.dismiss();
+    await run(() => resolveMatch(t.id, resolving.id, winnerUid), 'Partida decidida');
+  };
+
+  const roundNumbers = [...new Set(matches.map(m => m.round))];
 
   return (
     <Screen>
       <ScreenHeader title="Torneio" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+        {t.status === 'finished' && (
+          <Champion>
+            <Icon name="crown" size={32} color={colors.gold.main} />
+            <ChampionLabel>Campeão</ChampionLabel>
+            <ChampionName>
+              {t.championUid ? `@${profiles[t.championUid]?.nick ?? '...'}` : 'Sem campeão'}
+            </ChampionName>
+            {t.pot > 0 && !!t.championUid && <Meta>Bolo de {t.pot} estrelas dividido entre os primeiros.</Meta>}
+          </Champion>
+        )}
+
         <Info>
           <MetaRow>
             <Icon name={CATEGORY_ICON[t.category]} size={16} color={colors.text.secondary} />
@@ -236,7 +331,7 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
             {isPrivate && <Icon name="lock" size={16} color={colors.text.muted} />}
             <StatusBadge tone={t.status === 'cancelled' ? 'negative' : open ? 'gold' : 'neutral'}>
               <StatusText tone={t.status === 'cancelled' ? 'negative' : open ? 'gold' : 'neutral'}>
-                {t.status === 'open' && !open ? 'Inscrições fechadas' : STATUS_LABEL[t.status]}
+                {checkinOpen ? 'Check-in aberto' : STATUS_LABEL[t.status]}
               </StatusText>
             </StatusBadge>
           </MetaRow>
@@ -293,6 +388,21 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                 </CopyChip>
               </InfoRow>
             )}
+            {t.status === 'open' &&
+              (checkinOpen ? (
+                <Button
+                  label={`Iniciar torneio (${checkedInCount} com check-in)`}
+                  icon="play"
+                  loading={busy}
+                  disabled={checkedInCount < 2}
+                  onPress={start}
+                />
+              ) : (
+                <Meta>O check-in abre 30 minutos antes; aí você inicia o torneio.</Meta>
+              ))}
+            {t.status === 'running' && (
+              <Meta>Toque numa partida em andamento para dar W.O. ou derrota dupla.</Meta>
+            )}
             <Button label="Compartilhar" icon="share-variant" variant="secondary" onPress={share} />
             {t.status === 'open' && (
               <Button label="Cancelar torneio" variant="ghost" loading={busy} onPress={cancel} />
@@ -313,6 +423,9 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                   @{profile?.nick ?? '...'}
                   {player.uid === uid ? ' (você)' : ''}
                 </PlayerNick>
+                {checkinOpen && player.checkedIn && (
+                  <Icon name="check-circle" size={18} color={colors.feedback.positive} />
+                )}
                 {!!t.entryFeeCents && (
                   <PaidChip
                     paid={player.paid}
@@ -328,10 +441,48 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
         )}
 
         <SectionTitle>Rodadas</SectionTitle>
-        <Empty>As rodadas e o pareamento aparecem aqui quando o torneio começar.</Empty>
+        {matches.length === 0 ? (
+          <Empty>As rodadas e o pareamento aparecem aqui quando o torneio começar.</Empty>
+        ) : (
+          roundNumbers.map(round => (
+            <Rounds key={round}>
+              <RoundTitle>{roundLabel(round, rounds)}</RoundTitle>
+              {matches
+                .filter(m => m.round === round)
+                .map(match => {
+                  const tappable =
+                    (match.players.includes(uid) && !!match.duelId) || (isOrganizer && match.status === 'active');
+                  return (
+                    <MatchRow
+                      key={match.id}
+                      match={match}
+                      profiles={profiles}
+                      myUid={uid}
+                      onPress={tappable ? () => openMatch(match) : undefined}
+                    />
+                  );
+                })}
+            </Rounds>
+          ))
+        )}
       </ScrollView>
 
       {!!footer && <Footer>{footer}</Footer>}
+
+      <AppSheet ref={resolveSheetRef} title="Decidir partida">
+        <Meta>Use quando a partida travou: alguém não apareceu ou os dois não se acertaram.</Meta>
+        {(resolving?.players ?? [])
+          .filter((p): p is string => !!p)
+          .map(p => (
+            <Button
+              key={p}
+              label={`@${profiles[p]?.nick ?? '...'} venceu`}
+              variant="secondary"
+              onPress={() => resolve(p)}
+            />
+          ))}
+        <Button label="Derrota dupla (os dois saem)" variant="ghost" onPress={() => resolve(null)} />
+      </AppSheet>
 
       <AppSheet ref={passwordSheetRef} title="Torneio privado">
         <TextField

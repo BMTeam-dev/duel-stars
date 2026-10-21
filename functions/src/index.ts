@@ -13,4 +13,8 @@ export {
   leaveTournament,
   cancelTournament,
   setTournamentPlayerPaid,
+  checkInTournament,
+  startTournament,
+  resolveTournamentMatch,
+  onTournamentDuelEnded,
 } from './tournaments';

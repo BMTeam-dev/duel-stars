@@ -28,11 +28,41 @@ export type Tournament = {
   status: TournamentStatus;
   playerUids: string[];
   playerCount: number;
+  // A partir do início:
+  rounds: number | null;
+  currentRound: number | null;
+  championUid: string | null;
+  // [campeão, vice, semifinalistas] - null onde não houve (bye, derrota dupla).
+  placements: (string | null)[];
+  pot: number;
 };
+
+export type MatchResult = 'win' | 'bye' | 'double_loss';
+
+export type TournamentMatch = {
+  id: string;
+  round: number;
+  slot: number;
+  players: (string | null)[];
+  status: 'pending' | 'active' | 'done';
+  duelId: string | null;
+  winnerUid: string | null;
+  result: MatchResult | null;
+};
+
+export const CHECKIN_WINDOW_MS = 30 * 60 * 1000;
+
+export function roundLabel(round: number, rounds: number): string {
+  if (round === rounds) return 'Final';
+  if (round === rounds - 1) return 'Semifinal';
+  if (round === rounds - 2) return 'Quartas de final';
+  return `Rodada ${round}`;
+}
 
 export type TournamentPlayer = {
   uid: string;
   paid: boolean;
+  checkedIn: boolean;
   joinedAt: number | null;
 };
 
