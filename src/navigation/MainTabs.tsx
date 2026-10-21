@@ -4,9 +4,9 @@ import { colors } from '../configs/colors';
 import { Icon, IconName } from '../shared/ui/Icon';
 import { TabsTypes } from './screensTypes';
 
-import FeedScreen from '../features/feed/FeedScreen';
-import CardsScreen from '../features/cards/CardsScreen';
-import ProfileScreen from '../features/profile/ProfileScreen';
+import FeedScreen from '../modules/feed/views/Feed';
+import CardsScreen from '../modules/cards/views/Cards';
+import ProfileScreen from '../modules/profile/views/Profile';
 
 const Tab = createBottomTabNavigator<TabsTypes>();
 

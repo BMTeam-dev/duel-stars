@@ -31,11 +31,16 @@ do resto do projeto.
 - `services/` - lógica que fala com o mundo de fora (Firebase, APIs, SDKs
   nativos), sem depender de nenhuma tela específica. Hoje tem `auth/`
   (Firebase Auth + Google Sign-In), `analytics/` (Firebase Analytics),
-  `crashReporting/` (Crashlytics). Services não importam de `features/`
-  nunca - a dependência é sempre features → services, não o contrário.
-- `features/<nome>/` - uma tela (ou grupo pequeno de telas relacionadas) +
-  tudo que só ela usa. Ver a seção "como adicionar um módulo" abaixo pro
-  padrão exato.
+  `crashReporting/` (Crashlytics). Services não importam de `modules/`
+  nunca - a dependência é sempre modules → services, não o contrário.
+- `modules/<nome>/` - um domínio do app (`auth`, `feed`, `duel`, `profile`,
+  `onboarding`, `cards`). Dentro dele:
+  - `views/<Tela>/index.tsx` + `views/<Tela>/styles.ts` - uma pasta por tela.
+  - `components/<Componente>/index.tsx` + `styles.ts` - peças usadas só pelas
+    telas desse módulo.
+  - Estilos são sempre styled-components no `styles.ts` ao lado, exportados
+    por nome; o `index.tsx` só tem lógica e JSX.
+  - Componente usado por mais de um módulo vai pra `shared/ui/`.
 - `shared/` - utilitário genérico usado por mais de um service/feature, sem
   dependência de nenhum dos dois (ex: `deviceId.ts`).
 - `configs/` - configuração de bibliotecas de UI (`colors.ts`,
@@ -43,9 +48,8 @@ do resto do projeto.
 
 ## Como adicionar um módulo/feature novo
 
-Exemplo real nesse próprio scaffold: `features/auth/` (duas telas,
-Login+Signup) e `features/home/` (uma tela placeholder). Pra criar um
-módulo `pedidos`, por exemplo:
+Exemplo real: `modules/feed/` (tela `views/Feed` + componentes como
+`components/ChallengeSheet`). Pra criar um módulo `pedidos`, por exemplo:
 
 1. Registre a(s) tela(s) em `navigation/screensTypes.ts`:
    ```ts
@@ -59,18 +63,13 @@ módulo `pedidos`, por exemplo:
    ```ts
    export type PedidosProps = StackScreenProps<'Pedidos'>;
    ```
-3. Crie `src/features/pedidos/`:
-   - `styles.ts` - todo o styled-components do módulo, exportado por nome
-     (`Container`, `Title`, etc. - ver `features/home/styles.ts` pro
-     exemplo mais simples, `features/auth/styles.ts` pro mais completo).
-   - `PedidosScreen.tsx` - o componente, recebendo `PedidosProps`. Se a
-     lógica/estado for simples, fica tudo aqui mesmo (ver `HomeScreen.tsx`).
-     Se crescer (múltiplos `useState`, side effects, chamadas assíncronas),
-     extraia pra um hook próprio: `usePedidos.ts`, que a `Screen` só chama -
-     mantém o componente focado em renderizar, não em orquestrar (ver o
-     app de origem desse scaffold, que tinha um `useConversation.ts`
-     orquestrando toda a lógica de uma tela de chat, enquanto a `Screen`
-     só montava JSX).
+3. Crie `src/modules/pedidos/views/Pedidos/`:
+   - `styles.ts` - os styled-components da tela, exportados por nome
+     (`Container`, `Title`, etc.).
+   - `index.tsx` - o componente, recebendo `PedidosProps`. Se a lógica
+     crescer (vários `useState`, efeitos, chamadas assíncronas), extraia pra
+     um hook `usePedidos.ts` na mesma pasta, e a tela só monta o JSX.
+   - Componentes só desse módulo: `src/modules/pedidos/components/<Nome>/`.
 4. Registre a tela em `navigation/index.tsx` (importa o componente, adiciona
    um `<Stack.Screen name="Pedidos" component={PedidosScreen} ... />`).
 5. Se o módulo precisa lembrar alguma coisa entre sessões (ex: uma

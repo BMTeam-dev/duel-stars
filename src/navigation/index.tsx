@@ -6,13 +6,13 @@ import { useAppSelector } from '../redux/store';
 import { MainTabs } from './MainTabs';
 
 // Screens
-import LoginScreen from '../features/auth/LoginScreen';
-import SignupScreen from '../features/auth/SignupScreen';
-import OnboardingScreen from '../features/onboarding/OnboardingScreen';
-import EditProfileScreen from '../features/profile/EditProfileScreen';
-import CreateChallengeScreen from '../features/duel/CreateChallengeScreen';
-import ScanChallengeScreen from '../features/duel/ScanChallengeScreen';
-import DuelScreen from '../features/duel/DuelScreen';
+import LoginScreen from '../modules/auth/views/Login';
+import SignupScreen from '../modules/auth/views/Signup';
+import OnboardingScreen from '../modules/onboarding/views/Onboarding';
+import EditProfileScreen from '../modules/profile/views/EditProfile';
+import CreateChallengeScreen from '../modules/duel/views/CreateChallenge';
+import ScanChallengeScreen from '../modules/duel/views/ScanChallenge';
+import DuelScreen from '../modules/duel/views/Duel';
 
 const Stack = createNativeStackNavigator<ScreensTypes>();
 
