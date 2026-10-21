@@ -4,7 +4,6 @@ import { fontSize, radius, spacing } from '../../../../configs/theme';
 
 export const Card = styled.View`
   align-self: stretch;
-  margin-top: ${spacing.xl}px;
   padding: ${spacing.lg}px;
   border-radius: ${radius.lg}px;
   border-width: 1px;

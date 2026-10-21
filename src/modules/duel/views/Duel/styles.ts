@@ -129,3 +129,8 @@ export const WinnerText = styled.Text`
   font-size: ${fontSize.bodyLarge}px;
   font-weight: 700;
 `;
+
+export const NoteArea = styled.View`
+  align-self: stretch;
+  margin-top: ${spacing.xl}px;
+`;

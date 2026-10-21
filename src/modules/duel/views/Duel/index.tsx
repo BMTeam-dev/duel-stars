@@ -37,6 +37,7 @@ import {
   Screen,
   Center,
   Message,
+  NoteArea,
   Versus,
   Player,
   PlayerNick,
@@ -219,7 +220,11 @@ function DuelScreen({ navigation, route }: DuelProps) {
                     : `@${opponent?.nick ?? ''} venceu. Bora pra revanche?`}
                 </Message>
               )}
-              {!cancelled && <DuelNote uid={myUid} duelId={duel.id} />}
+              {!cancelled && (
+                <NoteArea>
+                  <DuelNote uid={myUid} duelId={duel.id} />
+                </NoteArea>
+              )}
             </Center>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -298,38 +303,49 @@ function DuelScreen({ navigation, route }: DuelProps) {
     );
   }
 
+  // A partida acabou (alguém informou o resultado): hora de anotar o deck,
+  // com o duelo fresco na cabeça. Durante o jogo o campo só atrapalharia.
+  const finished = duel.status === 'disputed' || !!myReport || !!opponentReport;
+
   return (
     <Screen>
       {header}
-      <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {versus}
-        {statusCard}
-        {duel.status === 'active' &&
-          !myReport &&
-          !isOnlineCategory(duel.category) && (
-            <LifePoints
-              myNick={me?.nick ?? 'Você'}
-              opponentNick={opponent?.nick ?? 'Oponente'}
-            />
-          )}
-        {/* Online o próprio jogo controla os LP: aqui só o lembrete. */}
-        {duel.status === 'active' &&
-          !myReport &&
-          isOnlineCategory(duel.category) && (
-            <StatusCard tone="neutral">
-              <Icon
-                name={duel.category === 'md' ? 'monitor' : 'cellphone'}
-                color={colors.text.secondary}
+        <ScrollView
+          contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {versus}
+          {statusCard}
+          {finished && <DuelNote uid={myUid} duelId={duel.id} />}
+          {duel.status === 'active' &&
+            !myReport &&
+            !isOnlineCategory(duel.category) && (
+              <LifePoints
+                myNick={me?.nick ?? 'Você'}
+                opponentNick={opponent?.nick ?? 'Oponente'}
               />
-              <StatusText>
-                Joguem no {CATEGORY_LABEL[duel.category]}. Quando terminar,
-                volte aqui e informe quem venceu.
-              </StatusText>
-            </StatusCard>
-          )}
-      </ScrollView>
+            )}
+          {/* Online o próprio jogo controla os LP: aqui só o lembrete. */}
+          {duel.status === 'active' &&
+            !myReport &&
+            isOnlineCategory(duel.category) && (
+              <StatusCard tone="neutral">
+                <Icon
+                  name={duel.category === 'md' ? 'monitor' : 'cellphone'}
+                  color={colors.text.secondary}
+                />
+                <StatusText>
+                  Joguem no {CATEGORY_LABEL[duel.category]}. Quando terminar,
+                  volte aqui e informe quem venceu.
+                </StatusText>
+              </StatusCard>
+            )}
+        </ScrollView>
+      </KeyboardAvoidingView>
       <Footer>{footer}</Footer>
 
       <AppSheet ref={winnerSheetRef} title="Quem venceu?">
