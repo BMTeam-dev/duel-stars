@@ -73,7 +73,10 @@ function DuelScreen({ navigation, route }: DuelProps) {
   const me = profiles[myUid];
   const opponent = profiles[opponentUid];
   const nickOf = (uid: string) => (uid === myUid ? 'você' : `@${profiles[uid]?.nick ?? '...'}`);
-  const goToFeed = () => navigation.navigate('MainTabs', { screen: 'Feed' });
+  // Volta pra onde veio (Feed, Histórico...); aberto por notificação sem
+  // nada atrás, cai no Feed.
+  const leave = () =>
+    navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs', { screen: 'Feed' });
 
   const send = async (winnerUid: string) => {
     setSending(true);
@@ -159,7 +162,7 @@ function DuelScreen({ navigation, route }: DuelProps) {
           )}
         </Center>
         <Footer>
-          <Button label="Voltar ao feed" onPress={goToFeed} />
+          <Button label="Voltar" onPress={leave} />
         </Footer>
       </Screen>
     );
@@ -189,7 +192,7 @@ function DuelScreen({ navigation, route }: DuelProps) {
         </StatusText>
       </StatusCard>
     );
-    footer = <Button label="Voltar ao feed" variant="secondary" onPress={goToFeed} />;
+    footer = <Button label="Voltar" variant="secondary" onPress={leave} />;
   } else if (myReport && !opponentReport) {
     statusCard = (
       <StatusCard tone="neutral">
@@ -200,7 +203,7 @@ function DuelScreen({ navigation, route }: DuelProps) {
         </StatusText>
       </StatusCard>
     );
-    footer = <Button label="Voltar ao feed" variant="secondary" onPress={goToFeed} />;
+    footer = <Button label="Voltar" variant="secondary" onPress={leave} />;
   } else if (opponentReport && !myReport) {
     statusCard = (
       <StatusCard tone="gold">

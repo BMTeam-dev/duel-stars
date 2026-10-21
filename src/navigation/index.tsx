@@ -10,6 +10,7 @@ import LoginScreen from '../modules/auth/views/Login';
 import SignupScreen from '../modules/auth/views/Signup';
 import OnboardingScreen from '../modules/onboarding/views/Onboarding';
 import EditProfileScreen from '../modules/profile/views/EditProfile';
+import DuelHistoryScreen from '../modules/profile/views/DuelHistory';
 import CreateChallengeScreen from '../modules/duel/views/CreateChallenge';
 import ScanChallengeScreen from '../modules/duel/views/ScanChallenge';
 import DuelScreen from '../modules/duel/views/Duel';
@@ -39,6 +40,7 @@ export function Routes() {
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="DuelHistory" component={DuelHistoryScreen} />
           <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} />
           <Stack.Screen name="ScanChallenge" component={ScanChallengeScreen} />
           <Stack.Screen name="Duel" component={DuelScreen} options={{ gestureEnabled: false }} />

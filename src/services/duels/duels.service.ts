@@ -125,6 +125,26 @@ export function subscribeMyDuels(uid: string, onChange: (duels: Duel[]) => void)
   );
 }
 
+// Histórico do Perfil: todos os duelos do jogador, de qualquer categoria.
+// A tela aumenta `max` conforme rola (o índice players + createdAt já existe).
+export function subscribeDuelHistory(
+  uid: string,
+  max: number,
+  onChange: (duels: Duel[]) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, 'duels'),
+      where('players', 'array-contains', uid),
+      orderBy('createdAt', 'desc'),
+      limit(max),
+    ),
+    snapshot => onChange(snapshot.docs.map(d => toDuel(d.id, d.data()))),
+    onError,
+  );
+}
+
 export function subscribeFeed(
   category: Category,
   cityId: string | null,

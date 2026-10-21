@@ -191,3 +191,24 @@ export const SectionEmpty = styled.Text`
   text-align: center;
   margin-bottom: ${spacing.xl}px;
 `;
+
+export const SectionHeader = styled.View`
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+export const SeeAll = styled.Pressable`
+  padding: ${spacing.xs}px 0 ${spacing.sm}px ${spacing.md}px;
+`;
+
+export const SeeAllText = styled.Text`
+  color: ${colors.gold.main};
+  font-size: ${fontSize.body}px;
+  font-weight: 700;
+`;
+
+export const HistoryList = styled.View`
+  gap: ${spacing.sm}px;
+  margin-bottom: ${spacing.xl}px;
+`;

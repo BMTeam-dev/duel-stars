@@ -6,6 +6,7 @@ export type LoginProps = StackScreenProps<'Login'>;
 export type SignupProps = StackScreenProps<'Signup'>;
 export type OnboardingProps = StackScreenProps<'Onboarding'>;
 export type EditProfileProps = StackScreenProps<'EditProfile'>;
+export type DuelHistoryProps = StackScreenProps<'DuelHistory'>;
 export type CreateChallengeProps = StackScreenProps<'CreateChallenge'>;
 export type ScanChallengeProps = StackScreenProps<'ScanChallenge'>;
 export type DuelProps = StackScreenProps<'Duel'>;

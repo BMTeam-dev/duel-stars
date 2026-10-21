@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
@@ -11,24 +11,34 @@ import { mapAuthError, signOut } from '../../../../services/auth/auth.service';
 import { levelProgress, levelTitle } from '../../../../services/profile/level';
 import { totalRecord } from '../../../../services/profile/profile.service';
 import { useActiveCategory } from '../../../../services/profile/useActiveCategory';
-import { CATEGORIES, CATEGORY_ICON, CATEGORY_LABEL } from '../../../../services/duels/duels.types';
+import { CATEGORIES, CATEGORY_ICON, CATEGORY_LABEL, Duel } from '../../../../services/duels/duels.types';
+import { subscribeDuelHistory } from '../../../../services/duels/duels.service';
+import { crashReportingService } from '../../../../services/crashReporting/crashReporting.service';
+import { usePublicProfiles } from '../../../../services/profile/usePublicProfiles';
+import { pickFregues, pickNemesis, Rival, subscribeRivals } from '../../../../services/rivals/rivals.service';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Button } from '../../../../shared/ui/Button';
 import { useDialog } from '../../../../shared/ui/dialog/DialogProvider';
 import { Icon } from '../../../../shared/ui/Icon';
 import { toast } from '../../../../shared/ui/toast';
+import { DuelHistoryItem } from '../../components/DuelHistoryItem';
 import { LevelInfoSheet } from '../../components/LevelInfoSheet';
 import { LevelProgressCard } from '../../components/LevelProgressCard';
 import { MedalsRow } from '../../components/MedalsRow';
+import { RivalsCard } from '../../components/RivalsCard';
 import {
   CityRow,
   CityText,
   EditButton,
+  HistoryList,
   Identity,
   LevelText,
   Nick,
   SectionEmpty,
+  SectionHeader,
   SectionTitle,
+  SeeAll,
+  SeeAllText,
   StarsCaption,
   StarsCard,
   StarsCategory,
@@ -49,12 +59,40 @@ import {
   TopTitle,
 } from './styles';
 
+const RECENT_DUELS = 5;
+
 function ProfileScreen({ navigation }: ProfileProps) {
   const profile = useAppSelector(state => state.profile.profile);
   const { showDialog } = useDialog();
   const [signingOut, setSigningOut] = useState(false);
   const levelSheetRef = useRef<BottomSheetModal>(null);
   const { category, setCategory } = useActiveCategory();
+  const [recentDuels, setRecentDuels] = useState<Duel[]>([]);
+  const [rivals, setRivals] = useState<Rival[]>([]);
+
+  const uid = profile?.uid;
+  useEffect(() => {
+    if (!uid) return;
+    const onError = (scope: string) => (error: Error) => crashReportingService.recordError(error, scope);
+    const stopDuels = subscribeDuelHistory(uid, RECENT_DUELS, setRecentDuels, onError('recentDuels'));
+    const stopRivals = subscribeRivals(uid, setRivals, onError('rivals'));
+    return () => {
+      stopDuels();
+      stopRivals();
+    };
+  }, [uid]);
+
+  const fregues = pickFregues(rivals);
+  const nemesis = pickNemesis(rivals);
+  const opponentUids = useMemo(
+    () => [
+      ...recentDuels.map(duel => duel.players.find(p => p !== uid) ?? ''),
+      ...(fregues ? [fregues.uid] : []),
+      ...(nemesis ? [nemesis.uid] : []),
+    ],
+    [recentDuels, fregues, nemesis, uid],
+  );
+  const profiles = usePublicProfiles(opponentUids);
 
   if (!profile) return null;
 
@@ -159,11 +197,35 @@ function ProfileScreen({ navigation }: ProfileProps) {
           </StatTile>
         </StatsRow>
 
+        <SectionTitle>Rivais</SectionTitle>
+        <RivalsCard fregues={fregues} nemesis={nemesis} profiles={profiles} />
+
+        <SectionHeader>
+          <SectionTitle>Últimos duelos</SectionTitle>
+          {recentDuels.length > 0 && (
+            <SeeAll onPress={() => navigation.navigate('DuelHistory')} hitSlop={8}>
+              <SeeAllText>Ver todos</SeeAllText>
+            </SeeAll>
+          )}
+        </SectionHeader>
+        {recentDuels.length === 0 ? (
+          <SectionEmpty>Seus duelos aparecem aqui.</SectionEmpty>
+        ) : (
+          <HistoryList>
+            {recentDuels.map(duel => (
+              <DuelHistoryItem
+                key={duel.id}
+                duel={duel}
+                myUid={profile.uid}
+                opponent={profiles[duel.players.find(p => p !== profile.uid) ?? '']}
+                onPress={() => navigation.navigate('Duel', { duelId: duel.id })}
+              />
+            ))}
+          </HistoryList>
+        )}
+
         <SectionTitle>Medalhas</SectionTitle>
         <MedalsRow unlocked={[]} />
-
-        <SectionTitle>Histórico</SectionTitle>
-        <SectionEmpty>Seus duelos aparecem aqui.</SectionEmpty>
 
         <Button
           label="Sair da conta"
