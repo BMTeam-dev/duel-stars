@@ -14,9 +14,19 @@ type Props = {
   onPress?: () => void;
 };
 
+type Tone = 'gold' | 'negative' | 'muted';
+
+function status(match: TournamentMatch): { text: string; tone: Tone } {
+  if (match.status === 'active') {
+    if (match.duelStatus === 'disputed') return { text: 'Em disputa', tone: 'negative' };
+    if (match.duelStatus === 'awaiting') return { text: 'Aguardando confirmação', tone: 'gold' };
+    return { text: 'Em jogo', tone: 'gold' };
+  }
+  return { text: statusText(match), tone: 'muted' };
+}
+
 function statusText(match: TournamentMatch): string {
   if (match.status === 'pending') return 'Aguardando';
-  if (match.status === 'active') return 'Em jogo';
   if (match.result === 'bye') return 'Passou direto';
   if (match.result === 'double_loss') return 'Derrota dupla';
   return 'Encerrada';
@@ -49,8 +59,8 @@ export function MatchRow({ match, profiles, myUid, onPress }: Props) {
     <Card mine={mine} onPress={onPress} disabled={!onPress}>
       {renderSide(match.players[0] ?? null)}
       {renderSide(match.players[1] ?? null)}
-      <Status active={match.status === 'active'}>
-        <StatusText active={match.status === 'active'}>{statusText(match)}</StatusText>
+      <Status>
+        <StatusText tone={status(match).tone}>{status(match).text}</StatusText>
         {!!onPress && <Icon name="chevron-right" size={16} color={colors.text.muted} />}
       </Status>
     </Card>

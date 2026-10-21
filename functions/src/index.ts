@@ -17,4 +17,5 @@ export {
   startTournament,
   resolveTournamentMatch,
   onTournamentDuelEnded,
+  remindTournamentDeadlines,
 } from './tournaments';

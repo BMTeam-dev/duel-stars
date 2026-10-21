@@ -199,6 +199,7 @@ export function subscribeMatches(id: string, onChange: (matches: TournamentMatch
               slot: data.slot,
               players: data.players ?? [],
               status: data.status,
+              duelStatus: data.duelStatus ?? null,
               duelId: data.duelId ?? null,
               winnerUid: data.winnerUid ?? null,
               result: data.result ?? null,

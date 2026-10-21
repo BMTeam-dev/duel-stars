@@ -45,6 +45,8 @@ export type TournamentMatch = {
   slot: number;
   players: (string | null)[];
   status: 'pending' | 'active' | 'done';
+  // Estado do duelo enquanto a partida está em jogo.
+  duelStatus: 'active' | 'awaiting' | 'disputed' | null;
   duelId: string | null;
   winnerUid: string | null;
   result: MatchResult | null;

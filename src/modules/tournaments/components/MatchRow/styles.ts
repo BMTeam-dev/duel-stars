@@ -27,15 +27,16 @@ export const Nick = styled.Text<{ won?: boolean; muted?: boolean; mine?: boolean
   text-decoration-line: ${({ muted, won }) => (muted && !won ? 'line-through' : 'none')};
 `;
 
-export const Status = styled.View<{ active: boolean }>`
+export const Status = styled.View`
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   margin-top: ${spacing.xs}px;
 `;
 
-export const StatusText = styled.Text<{ active: boolean }>`
-  color: ${({ active }) => (active ? colors.gold.main : colors.text.muted)};
+export const StatusText = styled.Text<{ tone: 'gold' | 'negative' | 'muted' }>`
+  color: ${({ tone }) =>
+    tone === 'gold' ? colors.gold.main : tone === 'negative' ? colors.feedback.negative : colors.text.muted};
   font-size: ${fontSize.caption}px;
   font-weight: 700;
 `;
