@@ -646,7 +646,7 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                 <StandingNick header>Jogador</StandingNick>
                 <StandingNum header>Pts</StandingNum>
                 <StandingNum header>V-D</StandingNum>
-                <StandingNum header>Adv.</StandingNum>
+                <StandingNum header>Adv. %</StandingNum>
               </StandingRow>
               {table.map((row, i) => (
                 <StandingRow
@@ -666,6 +666,10 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                 </StandingRow>
               ))}
             </StandingsTable>
+            <Meta>
+              Adv. % = vitórias dos adversários que cada um enfrentou (usado no
+              desempate de quem tem os mesmos pontos).
+            </Meta>
           </>
         )}
 

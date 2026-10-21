@@ -227,7 +227,7 @@ export const StandingNick = styled.Text<{ header?: boolean }>`
 `;
 
 export const StandingNum = styled.Text<{ header?: boolean; strong?: boolean }>`
-  width: 44px;
+  width: 52px;
   text-align: right;
   color: ${({ header, strong }) => (strong ? colors.gold.main : header ? colors.text.secondary : colors.text.primary)};
   font-size: ${({ header }) => (header ? fontSize.caption : fontSize.body)}px;
