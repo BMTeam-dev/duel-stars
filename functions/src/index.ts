@@ -14,6 +14,7 @@ export {
   cancelTournament,
   setTournamentPlayerPaid,
   checkInTournament,
+  openTournamentCheckin,
   startTournament,
   resolveTournamentMatch,
   onTournamentDuelEnded,

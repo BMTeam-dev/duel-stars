@@ -238,3 +238,24 @@ export const StandingNum = styled.Text<{ header?: boolean; strong?: boolean }>`
 export const TabsBar = styled.View`
   background-color: ${colors.background};
 `;
+
+export const OrganizerRow = styled.View`
+  flex-direction: row;
+  align-items: center;
+  gap: ${spacing.md}px;
+  padding-bottom: ${spacing.md}px;
+  border-bottom-width: 1px;
+  border-bottom-color: ${colors.border};
+`;
+
+export const OrganizerTag = styled.View`
+  padding: 2px ${spacing.sm}px;
+  border-radius: ${radius.sm}px;
+  background-color: ${colors.gold.soft};
+`;
+
+export const OrganizerTagText = styled.Text`
+  color: ${colors.gold.main};
+  font-size: ${fontSize.caption}px;
+  font-weight: 800;
+`;

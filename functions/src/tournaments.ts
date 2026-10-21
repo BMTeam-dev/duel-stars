@@ -37,6 +37,17 @@ type Status = 'open' | 'checkin' | 'running' | 'finished' | 'cancelled';
 
 const CATEGORIES: Category[] = ['tcg', 'md', 'dl'];
 const ACTIVE: Status[] = ['open', 'checkin', 'running'];
+// Antes do início: dá pra entrar, sair e cancelar.
+const NOT_STARTED: Status[] = ['open', 'checkin'];
+const startsAtMs = (t: DocumentData) =>
+  t.startsAt ? (t.startsAt as Timestamp).toMillis() : null;
+
+// Com data, fecha no horário marcado; sem data, até o organizador iniciar.
+function registrationOpen(t: DocumentData): boolean {
+  if (!NOT_STARTED.includes(t.status)) return false;
+  const start = startsAtMs(t);
+  return start === null || start > Date.now();
+}
 const MIN_PLAYERS = 4;
 const MAX_PLAYERS = 64;
 const MAX_STARS_ENTRY = 5;
@@ -151,15 +162,20 @@ export const createTournament = onCall(async request => {
       ? null
       : intIn(d.roundMinutes, 10, 60 * 24 * 30, 'Prazo da rodada inválido.');
 
+  // Sem data: começa quando o organizador abrir o check-in e iniciar.
+  const noDate = d.startsAt == null;
   const startsAtMs = Number(d.startsAt);
   const now = Date.now();
-  if (!Number.isFinite(startsAtMs) || startsAtMs < now + 10 * 60 * 1000) {
+  if (
+    !noDate &&
+    (!Number.isFinite(startsAtMs) || startsAtMs < now + 10 * 60 * 1000)
+  ) {
     throw new HttpsError(
       'invalid-argument',
       'O torneio precisa começar pelo menos 10 minutos a partir de agora.',
     );
   }
-  if (startsAtMs > now + MAX_DAYS_AHEAD * 24 * 60 * 60 * 1000) {
+  if (!noDate && startsAtMs > now + MAX_DAYS_AHEAD * 24 * 60 * 60 * 1000) {
     throw new HttpsError(
       'invalid-argument',
       `O início pode ser em até ${MAX_DAYS_AHEAD} dias.`,
@@ -196,7 +212,7 @@ export const createTournament = onCall(async request => {
       minStars,
       maxPlayers,
       roundMinutes,
-      startsAt: Timestamp.fromMillis(startsAtMs),
+      startsAt: noDate ? null : Timestamp.fromMillis(startsAtMs),
       code: randomCode(),
       organizerUid: uid,
       status: 'open' as Status,
@@ -226,10 +242,7 @@ export const joinTournament = onCall(async request => {
     if (!t) throw new HttpsError('not-found', 'Torneio não encontrado.');
     if (playerSnap.exists)
       throw new HttpsError('already-exists', 'Você já está inscrito.');
-    if (
-      t.status !== 'open' ||
-      (t.startsAt as Timestamp).toMillis() <= Date.now()
-    ) {
+    if (!registrationOpen(t)) {
       throw new HttpsError(
         'failed-precondition',
         'As inscrições desse torneio já fecharam.',
@@ -311,7 +324,7 @@ export const leaveTournament = onCall(async request => {
         'not-found',
         'Você não está inscrito nesse torneio.',
       );
-    if (t.status !== 'open')
+    if (!NOT_STARTED.includes(t.status))
       throw new HttpsError('failed-precondition', 'O torneio já começou.');
     const locked = playerSnap.get('starsLocked') ?? 0;
     tx.delete(playerSnap.ref);
@@ -330,6 +343,30 @@ export const leaveTournament = onCall(async request => {
   return { ok: true };
 });
 
+// Cancela antes do início: devolve as estrelas da inscrição de todo mundo.
+async function cancelInTx(
+  tx: Transaction,
+  ref: DocumentReference,
+  t: DocumentData,
+) {
+  const players = await tx.get(ref.collection('players'));
+  for (const player of players.docs) {
+    const locked = player.get('starsLocked') ?? 0;
+    if (locked > 0) {
+      tx.update(users.doc(player.id), {
+        [walletPath(t.category, 'lockedStars')]: FieldValue.increment(
+          negate(locked),
+        ),
+      });
+    }
+    tx.update(player.ref, { starsLocked: 0 });
+  }
+  tx.update(ref, {
+    status: 'cancelled' as Status,
+    cancelledAt: FieldValue.serverTimestamp(),
+  });
+}
+
 export const cancelTournament = onCall(async request => {
   const uid = requireAuth(request.auth?.uid);
   const ref = tournaments.doc(String(request.data?.id ?? ''));
@@ -345,28 +382,12 @@ export const cancelTournament = onCall(async request => {
       );
     // Depois do início as partidas já são duelos: aí o caminho é decidir as
     // partidas paradas (resolveTournamentMatch).
-    if (t.status !== 'open')
+    if (!NOT_STARTED.includes(t.status))
       throw new HttpsError(
         'failed-precondition',
         'O torneio já começou e não pode mais ser cancelado.',
       );
-    const players = await tx.get(ref.collection('players'));
-    // Devolve as estrelas da inscrição de todo mundo.
-    for (const player of players.docs) {
-      const locked = player.get('starsLocked') ?? 0;
-      if (locked > 0) {
-        tx.update(users.doc(player.id), {
-          [walletPath(t.category, 'lockedStars')]: FieldValue.increment(
-            negate(locked),
-          ),
-        });
-      }
-      tx.update(player.ref, { starsLocked: 0 });
-    }
-    tx.update(ref, {
-      status: 'cancelled' as Status,
-      cancelledAt: FieldValue.serverTimestamp(),
-    });
+    await cancelInTx(tx, ref, t);
   });
   return { ok: true };
 });
@@ -426,6 +447,53 @@ export function roundLabel(round: number, rounds: number): string {
 const swissLabel = (round: number, rounds: number) =>
   `Suíço · rodada ${round} de ${rounds}`;
 
+// Com data: 30 min antes. Sem data: quando o organizador abre (status checkin).
+function checkinOpen(t: DocumentData): boolean {
+  if (t.status === 'checkin') return true;
+  const start = startsAtMs(t);
+  return (
+    t.status === 'open' &&
+    start !== null &&
+    start - CHECKIN_WINDOW_MS <= Date.now()
+  );
+}
+
+// Torneio sem data: o organizador avisa que vai começar e abre o check-in.
+export const openTournamentCheckin = onCall(async request => {
+  const uid = requireAuth(request.auth?.uid);
+  const ref = tournaments.doc(String(request.data?.id ?? ''));
+  const t = await db.runTransaction(async tx => {
+    const data = (await tx.get(ref)).data();
+    if (!data) throw new HttpsError('not-found', 'Torneio não encontrado.');
+    if (data.organizerUid !== uid)
+      throw new HttpsError(
+        'permission-denied',
+        'Só o organizador pode abrir o check-in.',
+      );
+    if (data.status !== 'open' || startsAtMs(data) !== null) {
+      throw new HttpsError(
+        'failed-precondition',
+        'O check-in desse torneio não pode ser aberto agora.',
+      );
+    }
+    tx.update(ref, {
+      status: 'checkin' as Status,
+      checkinOpenedAt: FieldValue.serverTimestamp(),
+    });
+    return data;
+  });
+  await Promise.all(
+    (t.playerUids as string[]).map(player =>
+      notifyUser(player, {
+        title: `${t.name} vai começar`,
+        body: 'Confirme sua presença (check-in) para entrar nas rodadas.',
+        link: `/tournament/${ref.id}`,
+      }),
+    ),
+  );
+  return { ok: true };
+});
+
 export const checkInTournament = onCall(async request => {
   const uid = requireAuth(request.auth?.uid);
   const ref = tournaments.doc(String(request.data?.id ?? ''));
@@ -440,12 +508,14 @@ export const checkInTournament = onCall(async request => {
         'not-found',
         'Você não está inscrito nesse torneio.',
       );
-    if (t.status !== 'open')
+    if (!NOT_STARTED.includes(t.status))
       throw new HttpsError('failed-precondition', 'O torneio já começou.');
-    if ((t.startsAt as Timestamp).toMillis() - CHECKIN_WINDOW_MS > Date.now()) {
+    if (!checkinOpen(t)) {
       throw new HttpsError(
         'failed-precondition',
-        'O check-in abre 30 minutos antes do início.',
+        startsAtMs(t) === null
+          ? 'O check-in abre quando o organizador avisar que vai começar.'
+          : 'O check-in abre 30 minutos antes do início.',
       );
     }
     if (!player.get('paid')) {
@@ -738,12 +808,14 @@ export const startTournament = onCall(async request => {
         'permission-denied',
         'Só o organizador pode iniciar.',
       );
-    if (t.status !== 'open')
+    if (!NOT_STARTED.includes(t.status))
       throw new HttpsError('failed-precondition', 'Esse torneio já começou.');
-    if ((t.startsAt as Timestamp).toMillis() - CHECKIN_WINDOW_MS > Date.now()) {
+    if (!checkinOpen(t)) {
       throw new HttpsError(
         'failed-precondition',
-        'Dá para iniciar a partir de 30 minutos antes do horário marcado.',
+        startsAtMs(t) === null
+          ? 'Abra o check-in antes de iniciar.'
+          : 'Dá para iniciar a partir de 30 minutos antes do horário marcado.',
       );
     }
     const players = await tx.get(tRef.collection('players'));
@@ -1210,6 +1282,12 @@ export const resolveTournamentMatch = onCall(async request => {
         'Só o organizador pode decidir partidas.',
       );
     const match = (await tx.get(tRef.collection('matches').doc(id))).data();
+    if (match && (match.players as string[]).includes(uid)) {
+      throw new HttpsError(
+        'permission-denied',
+        'Você joga essa partida: ela segue pelo informe dos dois e pelo prazo da rodada.',
+      );
+    }
     if (!match || match.status !== 'active' || !match.duelId) {
       throw new HttpsError(
         'failed-precondition',
@@ -1237,6 +1315,29 @@ export const resolveTournamentMatch = onCall(async request => {
   return { ok: true };
 });
 
+// Torneio sem data que nunca começou: cancelado depois de 30 dias (devolve
+// as estrelas e libera o organizador pra criar outro).
+const UNDATED_MAX_MS = 30 * 24 * 60 * 60 * 1000;
+
+async function expireUndated(now: number) {
+  const stale = await tournaments
+    .where('status', 'in', NOT_STARTED)
+    .where('startsAt', '==', null)
+    .where('createdAt', '<=', Timestamp.fromMillis(now - UNDATED_MAX_MS))
+    .get();
+  for (const doc of stale.docs) {
+    await db.runTransaction(async tx => {
+      const t = (await tx.get(doc.ref)).data();
+      if (t && NOT_STARTED.includes(t.status)) await cancelInTx(tx, doc.ref, t);
+    });
+    await notifyUser(doc.get('organizerUid'), {
+      title: `${doc.get('name')} foi cancelado`,
+      body: 'O torneio ficou 30 dias sem começar. As estrelas da inscrição voltaram para todos.',
+      link: `/tournament/${doc.id}`,
+    });
+  }
+}
+
 // Lembrete do prazo, de hora em hora: quem ainda não informou o resultado
 // recebe um aviso quando faltam menos de 24 h. Só em rodadas de 1 dia ou
 // mais - na de 50 min o jogador está na mesa.
@@ -1246,6 +1347,7 @@ export const remindTournamentDeadlines = onSchedule(
   { schedule: 'every 60 minutes', timeZone: 'America/Sao_Paulo' },
   async () => {
     const now = Date.now();
+    await expireUndated(now);
     const soon = await duels
       .where('status', 'in', ['active', 'awaiting', 'disputed'])
       .where('deadlineAt', '<=', Timestamp.fromMillis(now + REMINDER_MS))

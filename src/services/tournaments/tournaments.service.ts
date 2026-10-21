@@ -15,7 +15,13 @@ import {
 import { db } from '../firestore/db';
 import { listenerError } from '../firestore/listenerError';
 import type { Category } from '../duels/duels.types';
-import { NewTournament, Tournament, TournamentMatch, TournamentPlayer } from './tournaments.types';
+import {
+  NewTournament,
+  registrationOpen,
+  Tournament,
+  TournamentMatch,
+  TournamentPlayer,
+} from './tournaments.types';
 
 const functions = getFunctions(getApp(), 'southamerica-east1');
 
@@ -28,6 +34,7 @@ export const createTournament = (data: NewTournament) =>
 export const joinTournament = (id: string, password?: string) => call('joinTournament', { id, password });
 export const leaveTournament = (id: string) => call('leaveTournament', { id });
 export const cancelTournament = (id: string) => call('cancelTournament', { id });
+export const openCheckin = (id: string) => call('openTournamentCheckin', { id });
 export const checkInTournament = (id: string) => call('checkInTournament', { id });
 export const startTournament = (id: string) => call('startTournament', { id });
 // winnerUid null = derrota dupla.
@@ -60,7 +67,7 @@ function toTournament(id: string, data: DocumentData): Tournament {
     minStars: data.minStars ?? null,
     maxPlayers: data.maxPlayers,
     roundMinutes: data.roundMinutes ?? null,
-    startsAt: millis(data.startsAt) ?? 0,
+    startsAt: millis(data.startsAt),
     code: data.code,
     organizerUid: data.organizerUid,
     status: data.status,
@@ -92,7 +99,7 @@ export function subscribeOpenTournaments(
       tournaments,
       where('category', '==', category),
       where('listed', '==', true),
-      where('status', '==', 'open'),
+      where('status', 'in', ['open', 'checkin']),
       orderBy('startsAt', 'asc'),
       limit(max),
     ),
@@ -100,8 +107,9 @@ export function subscribeOpenTournaments(
       onChange(
         snapshot.docs
           .map(d => toTournament(d.id, d.data()))
-          // Inscrição fecha no horário de início.
-          .filter(t => t.startsAt > Date.now()),
+          .filter(registrationOpen)
+          // Com data primeiro (do mais próximo); sem data depois.
+          .sort((a, b) => (a.startsAt ?? Infinity) - (b.startsAt ?? Infinity)),
       ),
     onError,
   );
@@ -117,7 +125,8 @@ export function subscribeMyTournaments(
   let organized: Tournament[] = [];
   const emit = () => {
     const byId = new Map([...joined, ...organized].map(t => [t.id, t]));
-    onChange([...byId.values()].sort((a, b) => b.startsAt - a.startsAt));
+    // Sem data (ainda por começar) em cima; depois do mais novo pro mais antigo.
+    onChange([...byId.values()].sort((a, b) => (b.startsAt ?? Infinity) - (a.startsAt ?? Infinity)));
   };
   const stopJoined = onSnapshot(
     query(tournaments, where('playerUids', 'array-contains', uid), orderBy('startsAt', 'desc'), limit(30)),

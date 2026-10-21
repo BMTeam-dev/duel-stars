@@ -4,9 +4,17 @@ import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { spacing } from '../../../../configs/theme';
 import { CreateTournamentProps } from '../../../../navigation/props';
 import { duelErrorMessage } from '../../../../services/duels/duels.service';
-import { CATEGORIES, CATEGORY_LABEL, Category, DuelFormat } from '../../../../services/duels/duels.types';
+import {
+  CATEGORIES,
+  CATEGORY_LABEL,
+  Category,
+  DuelFormat,
+} from '../../../../services/duels/duels.types';
 import { useActiveCategory } from '../../../../services/profile/useActiveCategory';
-import { createTournament } from '../../../../services/tournaments/tournaments.service';
+import {
+  createTournament,
+  joinTournament,
+} from '../../../../services/tournaments/tournaments.service';
 import {
   MAX_STARS_ENTRY,
   ROUND_DEADLINES,
@@ -22,7 +30,8 @@ import { Footer, Hint, Label, Row, RowItem, Screen, Section } from './styles';
 import { parseStart, maskDate, maskTime, parseMoney } from './parse';
 
 // Padrão do prazo da rodada: presencial acaba no dia; online pode levar semanas.
-const defaultDeadline = (category: Category) => (category === 'tcg' ? 50 : 60 * 24 * 7);
+const defaultDeadline = (category: Category) =>
+  category === 'tcg' ? 50 : 60 * 24 * 7;
 
 function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
   const { category: activeCategory } = useActiveCategory();
@@ -31,10 +40,14 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
   const [category, setCategory] = useState<Category>(activeCategory);
   const [format, setFormat] = useState<TournamentFormat>('swiss');
   const [matchFormat, setMatchFormat] = useState<DuelFormat>('bo3');
+  const [scheduled, setScheduled] = useState(true);
+  const [playsToo, setPlaysToo] = useState(false);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(16);
-  const [roundMinutes, setRoundMinutes] = useState<number | null>(defaultDeadline(activeCategory));
+  const [roundMinutes, setRoundMinutes] = useState<number | null>(
+    defaultDeadline(activeCategory),
+  );
   const [deadlineTouched, setDeadlineTouched] = useState(false);
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [password, setPassword] = useState('');
@@ -56,9 +69,15 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
   const feeCents = parseMoney(fee);
   const problems = [
     name.trim().length < 3 && 'Dê um nome ao torneio.',
-    !startsAt && 'Informe a data (DD/MM) e a hora (HH:MM) de início.',
-    visibility === 'private' && password.trim().length < 3 && 'Defina a senha do torneio privado.',
-    paid && (!feeCents || pixKey.trim().length < 5) && 'Informe o valor e a chave Pix da inscrição.',
+    scheduled &&
+      !startsAt &&
+      'Informe a data (DD/MM) e a hora (HH:MM) de início.',
+    visibility === 'private' &&
+      password.trim().length < 3 &&
+      'Defina a senha do torneio privado.',
+    paid &&
+      (!feeCents || pixKey.trim().length < 5) &&
+      'Informe o valor e a chave Pix da inscrição.',
   ].filter(Boolean) as string[];
 
   const handleCreate = async () => {
@@ -84,9 +103,29 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
         minStars: Number(minStars) > 0 ? Number(minStars) : null,
         maxPlayers,
         roundMinutes,
-        startsAt: startsAt!,
+        startsAt: scheduled ? startsAt : null,
       });
-      toast.success('Torneio criado');
+      // Organizador que joga entra pela inscrição normal (mesmas regras de
+      // ID do jogo e estrelas); se faltar algo, ele se inscreve pela tela.
+      if (playsToo) {
+        try {
+          await joinTournament(
+            id,
+            visibility === 'private' ? password.trim() : undefined,
+          );
+        } catch (error) {
+          toast.error(
+            `Torneio criado, mas não deu para te inscrever: ${duelErrorMessage(
+              error,
+            )}`,
+          );
+          navigation.replace('Tournament', { tournamentId: id });
+          return;
+        }
+      }
+      toast.success(
+        playsToo ? 'Torneio criado e você está inscrito' : 'Torneio criado',
+      );
       navigation.replace('Tournament', { tournamentId: id });
     } catch (error) {
       toast.error(duelErrorMessage(error));
@@ -97,9 +136,20 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
   return (
     <Screen>
       <ScreenHeader title="Criar torneio" onBack={() => navigation.goBack()} />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <ScrollView contentContainerStyle={{ padding: spacing.xl }} keyboardShouldPersistTaps="handled">
-          <TextField label="Nome do torneio" value={name} onChangeText={setName} maxLength={60} />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={{ padding: spacing.xl }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TextField
+            label="Nome do torneio"
+            value={name}
+            onChangeText={setName}
+            maxLength={60}
+          />
           <TextField
             label="Descrição (opcional)"
             placeholder="Banlist, regras da casa, premiação..."
@@ -111,7 +161,14 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
 
           <Section>
             <Label>Categoria</Label>
-            <OptionChips options={CATEGORIES.map(c => ({ value: c, label: CATEGORY_LABEL[c] }))} value={category} onChange={changeCategory} />
+            <OptionChips
+              options={CATEGORIES.map(c => ({
+                value: c,
+                label: CATEGORY_LABEL[c],
+              }))}
+              value={category}
+              onChange={changeCategory}
+            />
           </Section>
 
           <Section>
@@ -145,20 +202,72 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
 
           <Section>
             <Label>Início</Label>
-            <Row>
-              <RowItem>
-                <TextField label="Data" placeholder="DD/MM" value={date} onChangeText={v => setDate(maskDate(v))} keyboardType="number-pad" maxLength={5} />
-              </RowItem>
-              <RowItem>
-                <TextField label="Hora" placeholder="HH:MM" value={time} onChangeText={v => setTime(maskTime(v))} keyboardType="number-pad" maxLength={5} />
-              </RowItem>
-            </Row>
+            <OptionChips<boolean>
+              options={[
+                { value: true, label: 'Data marcada' },
+                { value: false, label: 'Quando eu iniciar' },
+              ]}
+              value={scheduled}
+              onChange={setScheduled}
+            />
+            {scheduled ? (
+              <Row>
+                <RowItem>
+                  <TextField
+                    label="Data"
+                    placeholder="DD/MM"
+                    value={date}
+                    onChangeText={v => setDate(maskDate(v))}
+                    keyboardType="number-pad"
+                    maxLength={5}
+                  />
+                </RowItem>
+                <RowItem>
+                  <TextField
+                    label="Hora"
+                    placeholder="HH:MM"
+                    value={time}
+                    onChangeText={v => setTime(maskTime(v))}
+                    keyboardType="number-pad"
+                    maxLength={5}
+                  />
+                </RowItem>
+              </Row>
+            ) : (
+              <Hint>
+                Sem data: as inscrições ficam abertas até você abrir o check-in
+                e iniciar. Sem começar em 30 dias, o torneio é cancelado e as
+                estrelas voltam.
+              </Hint>
+            )}
+          </Section>
+
+          <Section>
+            <Label>Você vai jogar?</Label>
+            <OptionChips<boolean>
+              options={[
+                { value: false, label: 'Só organizo' },
+                { value: true, label: 'Organizo e jogo' },
+              ]}
+              value={playsToo}
+              onChange={setPlaysToo}
+            />
+            {playsToo && (
+              <Hint>
+                Você entra inscrito. Nas suas partidas o resultado é pelo
+                informe dos dois e pelo prazo, como para todos: você não decide
+                a própria partida.
+              </Hint>
+            )}
           </Section>
 
           <Section>
             <Label>Vagas</Label>
             <OptionChips<number>
-              options={[4, 8, 16, 32, 64].map(n => ({ value: n, label: String(n) }))}
+              options={[4, 8, 16, 32, 64].map(n => ({
+                value: n,
+                label: String(n),
+              }))}
               value={maxPlayers}
               onChange={setMaxPlayers}
             />
@@ -167,7 +276,10 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
           <Section>
             <Label>Prazo da rodada</Label>
             <OptionChips<number | null>
-              options={ROUND_DEADLINES.map(o => ({ value: o.minutes, label: o.label }))}
+              options={ROUND_DEADLINES.map(o => ({
+                value: o.minutes,
+                label: o.label,
+              }))}
               value={roundMinutes}
               onChange={value => {
                 setDeadlineTouched(true);
@@ -193,7 +305,13 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
             />
             {visibility === 'private' && (
               <>
-                <TextField label="Senha" value={password} onChangeText={setPassword} autoCapitalize="none" maxLength={30} />
+                <TextField
+                  label="Senha"
+                  value={password}
+                  onChangeText={setPassword}
+                  autoCapitalize="none"
+                  maxLength={30}
+                />
                 <OptionChips<boolean>
                   options={[
                     { value: true, label: 'Mostrar na lista' },
@@ -234,9 +352,25 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
             />
             {paid && (
               <>
-                <TextField label="Valor (R$)" placeholder="10,00" value={fee} onChangeText={setFee} keyboardType="decimal-pad" maxLength={9} />
-                <TextField label="Chave Pix" value={pixKey} onChangeText={setPixKey} autoCapitalize="none" maxLength={77} />
-                <Hint>O app não recebe o pagamento: você confere o Pix e marca quem pagou na lista de inscritos.</Hint>
+                <TextField
+                  label="Valor (R$)"
+                  placeholder="10,00"
+                  value={fee}
+                  onChangeText={setFee}
+                  keyboardType="decimal-pad"
+                  maxLength={9}
+                />
+                <TextField
+                  label="Chave Pix"
+                  value={pixKey}
+                  onChangeText={setPixKey}
+                  autoCapitalize="none"
+                  maxLength={77}
+                />
+                <Hint>
+                  O app não recebe o pagamento: você confere o Pix e marca quem
+                  pagou na lista de inscritos.
+                </Hint>
               </>
             )}
           </Section>
@@ -265,7 +399,13 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
           </Section>
         </ScrollView>
         <Footer>
-          <Button label="Criar torneio" icon="tournament" size="lg" loading={saving} onPress={handleCreate} />
+          <Button
+            label="Criar torneio"
+            icon="tournament"
+            size="lg"
+            loading={saving}
+            onPress={handleCreate}
+          />
         </Footer>
       </KeyboardAvoidingView>
     </Screen>

@@ -22,7 +22,8 @@ export type Tournament = {
   maxPlayers: number;
   // null = sem prazo (o organizador avança as rodadas).
   roundMinutes: number | null;
-  startsAt: number;
+  // null = sem data: começa quando o organizador abrir o check-in e iniciar.
+  startsAt: number | null;
   code: string;
   organizerUid: string;
   status: TournamentStatus;
@@ -96,7 +97,7 @@ export type NewTournament = {
   minStars: number | null;
   maxPlayers: number;
   roundMinutes: number | null;
-  startsAt: number;
+  startsAt: number | null;
 };
 
 export const TOURNAMENT_FORMAT_LABEL: Record<TournamentFormat, string> = {
@@ -130,7 +131,20 @@ const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const pad = (n: number) => String(n).padStart(2, '0');
 
 // "sáb, 25/10 · 19:00"
-export function formatStart(ms: number): string {
+// Antes do início: dá pra entrar, sair e cancelar.
+export const notStarted = (t: Tournament) => t.status === 'open' || t.status === 'checkin';
+
+// Inscrições: com data, até o horário; sem data, até o organizador iniciar.
+export const registrationOpen = (t: Tournament) =>
+  notStarted(t) && (t.startsAt === null || t.startsAt > Date.now());
+
+// Check-in: com data, 30 min antes; sem data, quando o organizador abre.
+export const checkinIsOpen = (t: Tournament) =>
+  t.status === 'checkin' ||
+  (t.status === 'open' && t.startsAt !== null && Date.now() >= t.startsAt - CHECKIN_WINDOW_MS);
+
+export function formatStart(ms: number | null): string {
+  if (ms === null) return 'Início quando o organizador iniciar';
   const d = new Date(ms);
   return `${WEEKDAYS[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth() + 1)} · ${pad(d.getHours())}:${pad(
     d.getMinutes(),

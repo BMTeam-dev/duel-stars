@@ -17,6 +17,7 @@ import { usePublicProfiles } from '../../../../services/profile/usePublicProfile
 import {
   cancelTournament,
   checkInTournament,
+  openCheckin,
   getTournamentPassword,
   joinTournament,
   leaveTournament,
@@ -29,7 +30,9 @@ import {
   subscribeTournamentPlayers,
 } from '../../../../services/tournaments/tournaments.service';
 import {
-  CHECKIN_WINDOW_MS,
+  checkinIsOpen,
+  notStarted,
+  registrationOpen,
   formatMoney,
   formatStart,
   roundLabel,
@@ -76,6 +79,9 @@ import {
   MetaRow,
   Name,
   OrganizerBox,
+  OrganizerRow,
+  OrganizerTag,
+  OrganizerTagText,
   OrganizerTitle,
   PaidChip,
   PaidChipText,
@@ -91,7 +97,8 @@ type Tab = 'info' | 'players' | 'rounds' | 'standings';
 // Abre onde importa agora: inscrições -> Info; em jogo -> Rodadas; suíço
 // encerrado -> Classificação.
 function defaultTab(t: Tournament): Tab {
-  if (t.status === 'open' || t.status === 'cancelled') return 'info';
+  if (t.status === 'open' || t.status === 'checkin' || t.status === 'cancelled')
+    return 'info';
   if (t.status === 'finished' && t.format === 'swiss') return 'standings';
   return 'rounds';
 }
@@ -174,9 +181,9 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   }
 
   const joined = t.playerUids.includes(uid);
-  const open = t.status === 'open' && t.startsAt > Date.now();
-  const checkinOpen =
-    t.status === 'open' && Date.now() >= t.startsAt - CHECKIN_WINDOW_MS;
+  const open = registrationOpen(t);
+  const checkinOpen = checkinIsOpen(t);
+  const undated = t.startsAt === null;
   const me = players.find(p => p.uid === uid);
   const checkedInCount = players.filter(p => p.checkedIn).length;
   const myMatch = matches.find(
@@ -300,7 +307,13 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   if (open && !joined) {
     footer = (
       <Button
-        label={full ? 'Torneio lotado' : 'Inscrever-se'}
+        label={
+          full
+            ? 'Torneio lotado'
+            : isOrganizer
+            ? 'Participar também'
+            : 'Inscrever-se'
+        }
         icon={isPrivate ? 'lock' : 'tournament'}
         size="lg"
         disabled={full}
@@ -312,7 +325,7 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
         }
       />
     );
-  } else if (t.status === 'open' && joined) {
+  } else if (notStarted(t) && joined) {
     footer = (
       <>
         {checkinOpen && !me?.checkedIn && (
@@ -365,10 +378,25 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     if (ok) run(() => startTournament(t.id), 'Torneio iniciado');
   };
 
+  const openCheckinNow = async () => {
+    const ok = await showDialog({
+      icon: 'bell-ring',
+      title: 'Abrir o check-in?',
+      message: `Os ${t.playerCount} inscritos recebem um aviso para confirmar presença. Depois, inicie quando tiver gente suficiente.`,
+      confirmLabel: 'Abrir check-in',
+      cancelLabel: 'Voltar',
+    });
+    if (ok) run(() => openCheckin(t.id), 'Check-in aberto');
+  };
+
   const openMatch = (match: TournamentMatch) => {
     if (match.players.includes(uid) && match.duelId) {
       navigation.navigate('Duel', { duelId: match.duelId });
-    } else if (isOrganizer && match.status === 'active') {
+    } else if (
+      isOrganizer &&
+      match.status === 'active' &&
+      !match.players.includes(uid)
+    ) {
       setResolving(match);
       resolveSheetRef.current?.present();
     }
@@ -547,7 +575,7 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                     </CopyChip>
                   </InfoRow>
                 )}
-                {t.status === 'open' &&
+                {notStarted(t) &&
                   (checkinOpen ? (
                     <Button
                       label={`Iniciar torneio (${checkedInCount} com check-in)`}
@@ -555,6 +583,14 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                       loading={busy}
                       disabled={checkedInCount < 2}
                       onPress={start}
+                    />
+                  ) : undated ? (
+                    <Button
+                      label="Abrir check-in"
+                      icon="bell-ring"
+                      loading={busy}
+                      disabled={t.playerCount < 2}
+                      onPress={openCheckinNow}
                     />
                   ) : (
                     <Meta>
@@ -574,7 +610,7 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                   variant="secondary"
                   onPress={share}
                 />
-                {t.status === 'open' && (
+                {notStarted(t) && (
                   <Button
                     label="Cancelar torneio"
                     variant="ghost"
@@ -589,6 +625,23 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
 
         {currentTab === 'players' && (
           <>
+            <OrganizerRow>
+              <Avatar
+                name={organizer?.nick ?? '?'}
+                photoUrl={organizer?.photoUrl ?? null}
+                size={36}
+              />
+              <PlayerNick numberOfLines={1}>
+                @{organizer?.nick ?? '...'}
+              </PlayerNick>
+              <OrganizerTag>
+                <OrganizerTagText>
+                  {t.playerUids.includes(t.organizerUid)
+                    ? 'Organiza e joga'
+                    : 'Só organiza'}
+                </OrganizerTagText>
+              </OrganizerTag>
+            </OrganizerRow>
             {players.length === 0 ? (
               <Empty>Ninguém inscrito ainda.</Empty>
             ) : (
@@ -605,6 +658,11 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                       @{profile?.nick ?? '...'}
                       {player.uid === uid ? ' (você)' : ''}
                     </PlayerNick>
+                    {player.uid === t.organizerUid && (
+                      <OrganizerTag>
+                        <OrganizerTagText>Organizador</OrganizerTagText>
+                      </OrganizerTag>
+                    )}
                     {checkinOpen && player.checkedIn && (
                       <Icon
                         name="check-circle"
@@ -685,7 +743,9 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                 {group.matches.map(match => {
                   const tappable =
                     (match.players.includes(uid) && !!match.duelId) ||
-                    (isOrganizer && match.status === 'active');
+                    (isOrganizer &&
+                      match.status === 'active' &&
+                      !match.players.includes(uid));
                   return (
                     <MatchRow
                       key={match.id}
