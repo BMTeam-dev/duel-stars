@@ -47,6 +47,7 @@ import { Button } from '../../../../shared/ui/Button';
 import { useDialog } from '../../../../shared/ui/dialog/DialogProvider';
 import { Icon } from '../../../../shared/ui/Icon';
 import { ScreenHeader } from '../../../../shared/ui/ScreenHeader';
+import { SegmentedTabs } from '../../../../shared/ui/SegmentedTabs';
 import { TextField } from '../../../../shared/ui/TextField';
 import { toast } from '../../../../shared/ui/toast';
 import {
@@ -61,6 +62,7 @@ import {
   StandingPos,
   StandingRow,
   StandingsTable,
+  TabsBar,
   CopyChip,
   CopyChipText,
   Description,
@@ -80,10 +82,19 @@ import {
   PlayerNick,
   PlayerRow,
   Screen,
-  SectionTitle,
   StatusBadge,
   StatusText,
 } from './styles';
+
+type Tab = 'info' | 'players' | 'rounds' | 'standings';
+
+// Abre onde importa agora: inscrições -> Info; em jogo -> Rodadas; suíço
+// encerrado -> Classificação.
+function defaultTab(t: Tournament): Tab {
+  if (t.status === 'open' || t.status === 'cancelled') return 'info';
+  if (t.status === 'finished' && t.format === 'swiss') return 'standings';
+  return 'rounds';
+}
 
 const STATUS_LABEL: Record<Tournament['status'], string> = {
   open: 'Inscrições abertas',
@@ -109,6 +120,8 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   const [busy, setBusy] = useState(false);
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [resolving, setResolving] = useState<TournamentMatch | null>(null);
+  // null = aba padrão do momento do torneio (ver defaultTab).
+  const [tab, setTab] = useState<Tab | null>(null);
   const passwordSheetRef = useRef<BottomSheetModal>(null);
   const resolveSheetRef = useRef<BottomSheetModal>(null);
 
@@ -385,8 +398,20 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
       };
     },
   );
+  // Rodada mais recente em cima: é a que interessa durante o torneio.
+  groups.reverse();
   const showStandings =
     t.format === 'swiss' && t.status !== 'open' && t.status !== 'cancelled';
+  const currentTab: Tab =
+    tab === 'standings' && !showStandings ? 'info' : tab ?? defaultTab(t);
+  const tabs: { value: Tab; label: string; badge?: number }[] = [
+    { value: 'info', label: 'Info' },
+    { value: 'players', label: 'Jogadores', badge: t.playerCount },
+    { value: 'rounds', label: 'Rodadas' },
+    ...(showStandings
+      ? [{ value: 'standings' as Tab, label: 'Classificação' }]
+      : []),
+  ];
   const table = showStandings ? swissStandings(players) : [];
 
   return (
@@ -394,6 +419,9 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
       <ScreenHeader title="Torneio" onBack={() => navigation.goBack()} />
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
+        // As abas ficam presas no topo ao rolar (índice: depois do cartão
+        // do campeão, quando há, e do cartão do torneio).
+        stickyHeaderIndices={[t.status === 'finished' ? 2 : 1]}
       >
         {t.status === 'finished' && (
           <Champion>
@@ -451,140 +479,164 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
           {!!t.description && <Description>{t.description}</Description>}
         </Info>
 
-        <Info>
-          {info.map(([label, value]) => (
-            <InfoRow key={label}>
-              <InfoLabel>{label}</InfoLabel>
-              <InfoValue>{value}</InfoValue>
-            </InfoRow>
-          ))}
-          {!!t.pixKey && (
-            <InfoRow>
-              <InfoLabel>Chave Pix</InfoLabel>
-              <CopyChip onPress={() => copy(t.pixKey!, 'Pix')}>
-                <CopyChipText numberOfLines={1}>{t.pixKey}</CopyChipText>
-                <Icon name="content-copy" size={14} color={colors.gold.main} />
-              </CopyChip>
-            </InfoRow>
-          )}
-          {!!t.contact && (
-            <InfoRow>
-              <InfoLabel>Contato</InfoLabel>
-              <CopyChip onPress={() => copy(t.contact!, 'Contato')}>
-                <CopyChipText numberOfLines={1}>{t.contact}</CopyChipText>
-                <Icon name="content-copy" size={14} color={colors.gold.main} />
-              </CopyChip>
-            </InfoRow>
-          )}
-        </Info>
+        <TabsBar>
+          <SegmentedTabs options={tabs} value={currentTab} onChange={setTab} />
+        </TabsBar>
 
-        {isOrganizer && t.status !== 'cancelled' && (
-          <OrganizerBox>
-            <OrganizerTitle>Você organiza este torneio</OrganizerTitle>
-            <InfoRow>
-              <InfoLabel>Código</InfoLabel>
-              <CopyChip onPress={() => copy(t.code, 'Código')}>
-                <CopyChipText>{t.code}</CopyChipText>
-                <Icon name="content-copy" size={14} color={colors.gold.main} />
-              </CopyChip>
-            </InfoRow>
-            {!!password && (
-              <InfoRow>
-                <InfoLabel>Senha</InfoLabel>
-                <CopyChip onPress={() => copy(password, 'Senha')}>
-                  <CopyChipText>{password}</CopyChipText>
-                  <Icon
-                    name="content-copy"
-                    size={14}
-                    color={colors.gold.main}
-                  />
-                </CopyChip>
-              </InfoRow>
-            )}
-            {t.status === 'open' &&
-              (checkinOpen ? (
-                <Button
-                  label={`Iniciar torneio (${checkedInCount} com check-in)`}
-                  icon="play"
-                  loading={busy}
-                  disabled={checkedInCount < 2}
-                  onPress={start}
-                />
-              ) : (
-                <Meta>
-                  O check-in abre 30 minutos antes; aí você inicia o torneio.
-                </Meta>
-              ))}
-            {t.status === 'running' && (
-              <Meta>
-                Toque numa partida em andamento para dar W.O. ou derrota dupla.
-              </Meta>
-            )}
-            <Button
-              label="Compartilhar"
-              icon="share-variant"
-              variant="secondary"
-              onPress={share}
-            />
-            {t.status === 'open' && (
-              <Button
-                label="Cancelar torneio"
-                variant="ghost"
-                loading={busy}
-                onPress={cancel}
-              />
-            )}
-          </OrganizerBox>
-        )}
-
-        <SectionTitle>Inscritos ({t.playerCount})</SectionTitle>
-        {players.length === 0 ? (
-          <Empty>Ninguém inscrito ainda.</Empty>
-        ) : (
-          players.map(player => {
-            const profile = profiles[player.uid];
-            return (
-              <PlayerRow key={player.uid}>
-                <Avatar
-                  name={profile?.nick ?? '?'}
-                  photoUrl={profile?.photoUrl ?? null}
-                  size={36}
-                />
-                <PlayerNick numberOfLines={1}>
-                  @{profile?.nick ?? '...'}
-                  {player.uid === uid ? ' (você)' : ''}
-                </PlayerNick>
-                {checkinOpen && player.checkedIn && (
-                  <Icon
-                    name="check-circle"
-                    size={18}
-                    color={colors.feedback.positive}
-                  />
-                )}
-                {!!t.entryFeeCents && (
-                  <PaidChip
-                    paid={player.paid}
-                    disabled={!isOrganizer}
-                    onPress={() =>
-                      run(
-                        () => setPlayerPaid(t.id, player.uid, !player.paid),
-                        'Pagamento atualizado',
-                      )
-                    }
-                  >
-                    <PaidChipText paid={player.paid}>
-                      {player.paid ? 'Pago' : 'Pendente'}
-                    </PaidChipText>
-                  </PaidChip>
-                )}
-              </PlayerRow>
-            );
-          })
-        )}
-
-        {showStandings && (
+        {currentTab === 'info' && (
           <>
-            <SectionTitle>Classificação do suíço</SectionTitle>
+            <Info>
+              {info.map(([label, value]) => (
+                <InfoRow key={label}>
+                  <InfoLabel>{label}</InfoLabel>
+                  <InfoValue>{value}</InfoValue>
+                </InfoRow>
+              ))}
+              {!!t.pixKey && (
+                <InfoRow>
+                  <InfoLabel>Chave Pix</InfoLabel>
+                  <CopyChip onPress={() => copy(t.pixKey!, 'Pix')}>
+                    <CopyChipText numberOfLines={1}>{t.pixKey}</CopyChipText>
+                    <Icon
+                      name="content-copy"
+                      size={14}
+                      color={colors.gold.main}
+                    />
+                  </CopyChip>
+                </InfoRow>
+              )}
+              {!!t.contact && (
+                <InfoRow>
+                  <InfoLabel>Contato</InfoLabel>
+                  <CopyChip onPress={() => copy(t.contact!, 'Contato')}>
+                    <CopyChipText numberOfLines={1}>{t.contact}</CopyChipText>
+                    <Icon
+                      name="content-copy"
+                      size={14}
+                      color={colors.gold.main}
+                    />
+                  </CopyChip>
+                </InfoRow>
+              )}
+            </Info>
+
+            {isOrganizer && t.status !== 'cancelled' && (
+              <OrganizerBox>
+                <OrganizerTitle>Você organiza este torneio</OrganizerTitle>
+                <InfoRow>
+                  <InfoLabel>Código</InfoLabel>
+                  <CopyChip onPress={() => copy(t.code, 'Código')}>
+                    <CopyChipText>{t.code}</CopyChipText>
+                    <Icon
+                      name="content-copy"
+                      size={14}
+                      color={colors.gold.main}
+                    />
+                  </CopyChip>
+                </InfoRow>
+                {!!password && (
+                  <InfoRow>
+                    <InfoLabel>Senha</InfoLabel>
+                    <CopyChip onPress={() => copy(password, 'Senha')}>
+                      <CopyChipText>{password}</CopyChipText>
+                      <Icon
+                        name="content-copy"
+                        size={14}
+                        color={colors.gold.main}
+                      />
+                    </CopyChip>
+                  </InfoRow>
+                )}
+                {t.status === 'open' &&
+                  (checkinOpen ? (
+                    <Button
+                      label={`Iniciar torneio (${checkedInCount} com check-in)`}
+                      icon="play"
+                      loading={busy}
+                      disabled={checkedInCount < 2}
+                      onPress={start}
+                    />
+                  ) : (
+                    <Meta>
+                      O check-in abre 30 minutos antes; aí você inicia o
+                      torneio.
+                    </Meta>
+                  ))}
+                {t.status === 'running' && (
+                  <Meta>
+                    Toque numa partida em andamento para dar W.O. ou derrota
+                    dupla.
+                  </Meta>
+                )}
+                <Button
+                  label="Compartilhar"
+                  icon="share-variant"
+                  variant="secondary"
+                  onPress={share}
+                />
+                {t.status === 'open' && (
+                  <Button
+                    label="Cancelar torneio"
+                    variant="ghost"
+                    loading={busy}
+                    onPress={cancel}
+                  />
+                )}
+              </OrganizerBox>
+            )}
+          </>
+        )}
+
+        {currentTab === 'players' && (
+          <>
+            {players.length === 0 ? (
+              <Empty>Ninguém inscrito ainda.</Empty>
+            ) : (
+              players.map(player => {
+                const profile = profiles[player.uid];
+                return (
+                  <PlayerRow key={player.uid}>
+                    <Avatar
+                      name={profile?.nick ?? '?'}
+                      photoUrl={profile?.photoUrl ?? null}
+                      size={36}
+                    />
+                    <PlayerNick numberOfLines={1}>
+                      @{profile?.nick ?? '...'}
+                      {player.uid === uid ? ' (você)' : ''}
+                    </PlayerNick>
+                    {checkinOpen && player.checkedIn && (
+                      <Icon
+                        name="check-circle"
+                        size={18}
+                        color={colors.feedback.positive}
+                      />
+                    )}
+                    {!!t.entryFeeCents && (
+                      <PaidChip
+                        paid={player.paid}
+                        disabled={!isOrganizer}
+                        onPress={() =>
+                          run(
+                            () => setPlayerPaid(t.id, player.uid, !player.paid),
+                            'Pagamento atualizado',
+                          )
+                        }
+                      >
+                        <PaidChipText paid={player.paid}>
+                          {player.paid ? 'Pago' : 'Pendente'}
+                        </PaidChipText>
+                      </PaidChip>
+                    )}
+                  </PlayerRow>
+                );
+              })
+            )}
+          </>
+        )}
+
+        {currentTab === 'standings' && (
+          <>
             {t.stage === 'top' && !!t.topCut && (
               <Meta>Os {t.topCut} primeiros foram para o mata-mata.</Meta>
             )}
@@ -617,32 +669,32 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
           </>
         )}
 
-        <SectionTitle>Rodadas</SectionTitle>
-        {matches.length === 0 ? (
-          <Empty>
-            As rodadas e o pareamento aparecem aqui quando o torneio começar.
-          </Empty>
-        ) : (
-          groups.map(group => (
-            <Rounds key={group.key}>
-              <RoundTitle>{group.title}</RoundTitle>
-              {group.matches.map(match => {
-                const tappable =
-                  (match.players.includes(uid) && !!match.duelId) ||
-                  (isOrganizer && match.status === 'active');
-                return (
-                  <MatchRow
-                    key={match.id}
-                    match={match}
-                    profiles={profiles}
-                    myUid={uid}
-                    onPress={tappable ? () => openMatch(match) : undefined}
-                  />
-                );
-              })}
-            </Rounds>
-          ))
-        )}
+        {currentTab === 'rounds' &&
+          (matches.length === 0 ? (
+            <Empty>
+              As rodadas e o pareamento aparecem aqui quando o torneio começar.
+            </Empty>
+          ) : (
+            groups.map(group => (
+              <Rounds key={group.key}>
+                <RoundTitle>{group.title}</RoundTitle>
+                {group.matches.map(match => {
+                  const tappable =
+                    (match.players.includes(uid) && !!match.duelId) ||
+                    (isOrganizer && match.status === 'active');
+                  return (
+                    <MatchRow
+                      key={match.id}
+                      match={match}
+                      profiles={profiles}
+                      myUid={uid}
+                      onPress={tappable ? () => openMatch(match) : undefined}
+                    />
+                  );
+                })}
+              </Rounds>
+            ))
+          ))}
       </ScrollView>
 
       {!!footer && <Footer>{footer}</Footer>}

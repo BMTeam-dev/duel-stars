@@ -233,3 +233,8 @@ export const StandingNum = styled.Text<{ header?: boolean; strong?: boolean }>`
   font-size: ${({ header }) => (header ? fontSize.caption : fontSize.body)}px;
   font-weight: ${({ header, strong }) => (header || strong ? 800 : 500)};
 `;
+
+// Fundo opaco: a barra de abas fica presa no topo enquanto o conteúdo rola.
+export const TabsBar = styled.View`
+  background-color: ${colors.background};
+`;
