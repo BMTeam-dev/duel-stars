@@ -194,3 +194,42 @@ export const RoundTitle = styled.Text`
   font-weight: 800;
   text-transform: uppercase;
 `;
+
+export const StandingsTable = styled.View`
+  border-radius: ${radius.md}px;
+  border-width: 1px;
+  border-color: ${colors.border};
+  overflow: hidden;
+`;
+
+export const StandingRow = styled.View<{ header?: boolean; mine?: boolean; cut?: boolean }>`
+  flex-direction: row;
+  align-items: center;
+  gap: ${spacing.sm}px;
+  padding: ${spacing.sm}px ${spacing.md}px;
+  background-color: ${({ header, mine }) => (mine ? colors.gold.soft : header ? colors.surfaceRaised : colors.surface)};
+  border-bottom-width: ${({ cut }) => (cut ? 2 : 1)}px;
+  border-bottom-color: ${({ cut }) => (cut ? colors.gold.dark : colors.border)};
+`;
+
+export const StandingPos = styled.Text<{ header?: boolean }>`
+  width: 24px;
+  color: ${colors.text.secondary};
+  font-size: ${fontSize.body}px;
+  font-weight: 700;
+`;
+
+export const StandingNick = styled.Text<{ header?: boolean }>`
+  flex: 1;
+  color: ${({ header }) => (header ? colors.text.secondary : colors.text.primary)};
+  font-size: ${({ header }) => (header ? fontSize.caption : fontSize.body)}px;
+  font-weight: ${({ header }) => (header ? 700 : 600)};
+`;
+
+export const StandingNum = styled.Text<{ header?: boolean; strong?: boolean }>`
+  width: 44px;
+  text-align: right;
+  color: ${({ header, strong }) => (strong ? colors.gold.main : header ? colors.text.secondary : colors.text.primary)};
+  font-size: ${({ header }) => (header ? fontSize.caption : fontSize.body)}px;
+  font-weight: ${({ header, strong }) => (header || strong ? 800 : 500)};
+`;

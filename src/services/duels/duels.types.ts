@@ -44,11 +44,10 @@ export type Duel = {
   winnerUid: string | null;
   loserUid: string | null;
   createdAt: number | null;
-  // Partida de torneio (aposta 0): de qual torneio e rodada.
+  // Partida de torneio (aposta 0): de qual torneio e rodada ("Semifinal").
   tournamentId: string | null;
   tournamentName: string | null;
-  round: number | null;
-  rounds: number | null;
+  roundLabel: string | null;
 };
 
 export type ChallengePreview = {

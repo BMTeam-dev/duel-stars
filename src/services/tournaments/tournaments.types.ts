@@ -28,19 +28,26 @@ export type Tournament = {
   status: TournamentStatus;
   playerUids: string[];
   playerCount: number;
-  // A partir do início:
+  // A partir do início. stage: 'swiss' durante o suíço, 'top' no mata-mata
+  // (o torneio todo, ou o top cut depois do suíço).
+  stage: 'swiss' | 'top' | null;
+  swissRounds: number | null;
+  topCut: number | null;
   rounds: number | null;
   currentRound: number | null;
   championUid: string | null;
   // [campeão, vice, semifinalistas] - null onde não houve (bye, derrota dupla).
   placements: (string | null)[];
   pot: number;
+  // Classificação final do suíço (uids), pra mostrar depois do top cut.
+  finalStandings: string[];
 };
 
 export type MatchResult = 'win' | 'bye' | 'double_loss';
 
 export type TournamentMatch = {
   id: string;
+  stage: 'swiss' | 'top';
   round: number;
   slot: number;
   players: (string | null)[];
@@ -65,6 +72,11 @@ export type TournamentPlayer = {
   uid: string;
   paid: boolean;
   checkedIn: boolean;
+  // Suíço:
+  points: number;
+  wins: number;
+  losses: number;
+  opponents: string[];
   joinedAt: number | null;
 };
 
@@ -123,4 +135,19 @@ export function formatStart(ms: number): string {
   return `${WEEKDAYS[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth() + 1)} · ${pad(d.getHours())}:${pad(
     d.getMinutes(),
   )}`;
+}
+
+// Classificação do suíço - mesma regra do backend (functions/src/tournaments.ts):
+// pontos, % de vitórias dos adversários (mín. 33%) e dos adversários deles.
+export type Standing = TournamentPlayer & { omw: number };
+
+export function swissStandings(players: TournamentPlayer[]): Standing[] {
+  const byUid = new Map(players.map(p => [p.uid, p]));
+  const rate = (p?: TournamentPlayer) => (p ? Math.max(1 / 3, p.wins / Math.max(1, p.wins + p.losses)) : 0);
+  const avg = (values: number[]) => (values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0);
+  const omw = new Map(players.map(p => [p.uid, avg(p.opponents.map(o => rate(byUid.get(o))))]));
+  const oomw = new Map(players.map(p => [p.uid, avg(p.opponents.map(o => omw.get(o) ?? 0))]));
+  return players
+    .map(p => ({ ...p, omw: omw.get(p.uid)! }))
+    .sort((a, b) => b.points - a.points || b.omw - a.omw || oomw.get(b.uid)! - oomw.get(a.uid)!);
 }

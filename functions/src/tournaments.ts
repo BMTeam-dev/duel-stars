@@ -387,14 +387,39 @@ export const setTournamentPlayerPaid = onCall(async request => {
 });
 
 // ---------------------------------------------------------------------------
-// Check-in, início e mata-mata
+// Check-in, início, suíço e mata-mata
+//
+// Partidas em tournaments/{id}/matches:
+//   suíço       w{rodada}-t{mesa}  stage 'swiss'
+//   mata-mata   r{rodada}-s{pos}   stage 'top' (top cut, ou o torneio todo no mata-mata)
 
 const CHECKIN_WINDOW_MS = 30 * 60 * 1000;
 const duels = db.collection('duels');
 
 type MatchResult = 'win' | 'bye' | 'double_loss';
+type Stage = 'swiss' | 'top';
+type Created = { label: string; players: [string, string]; duelId: string };
 
-const matchId = (round: number, slot: number) => `r${round}-s${slot}`;
+const bracketId = (round: number, slot: number) => `r${round}-s${slot}`;
+const swissId = (round: number, table: number) => `w${round}-t${table}`;
+
+// Tabela da política oficial da Konami (v2.5, locais/regionais), até 64.
+function swissPlan(players: number): { rounds: number; topCut: number } {
+  if (players <= 8) return { rounds: 3, topCut: 0 };
+  if (players <= 16) return { rounds: 4, topCut: 4 };
+  if (players <= 32) return { rounds: 5, topCut: 4 };
+  return { rounds: 6, topCut: 8 };
+}
+
+export function roundLabel(round: number, rounds: number): string {
+  if (round === rounds) return 'Final';
+  if (round === rounds - 1) return 'Semifinal';
+  if (round === rounds - 2) return 'Quartas de final';
+  return `Rodada ${round}`;
+}
+
+const swissLabel = (round: number, rounds: number) =>
+  `Suíço · rodada ${round} de ${rounds}`;
 
 export const checkInTournament = onCall(async request => {
   const uid = requireAuth(request.auth?.uid);
@@ -443,8 +468,7 @@ function createMatchDuel(
   tx: Transaction,
   tRef: DocumentReference,
   t: DocumentData,
-  round: number,
-  slot: number,
+  match: { id: string; round: number; stage: Stage; label: string },
   players: [string, string],
 ): string {
   const duelRef = duels.doc();
@@ -462,51 +486,247 @@ function createMatchDuel(
     createdAt: FieldValue.serverTimestamp(),
     tournamentId: tRef.id,
     tournamentName: t.name,
-    matchId: matchId(round, slot),
-    round,
-    rounds: t.rounds,
+    matchId: match.id,
+    stage: match.stage,
+    round: match.round,
+    roundLabel: match.label,
     deadlineAt: deadline,
     roundMinutes: t.roundMinutes ?? null,
   });
   return duelRef.id;
 }
 
-export function roundLabel(round: number, rounds: number): string {
-  if (round === rounds) return 'Final';
-  if (round === rounds - 1) return 'Semifinal';
-  if (round === rounds - 2) return 'Quartas de final';
-  return `Rodada ${round}`;
-}
-
-async function notifyMatch(
-  t: DocumentData,
-  tid: string,
-  round: number,
-  players: string[],
-  duelId: string,
-) {
+async function notifyMatch(t: DocumentData, m: Created) {
   const nicks = await Promise.all(
-    players.map(async uid => (await users.doc(uid).get()).get('nick') ?? '...'),
+    m.players.map(
+      async uid => (await users.doc(uid).get()).get('nick') ?? '...',
+    ),
   );
   await Promise.all(
-    players.map((uid, i) =>
+    m.players.map((uid, i) =>
       notifyUser(uid, {
-        title: `${t.name}: ${roundLabel(round, t.rounds)}`,
+        title: `${t.name}: ${m.label}`,
         body: `Sua partida contra @${nicks[1 - i]} começou. Boa sorte!`,
-        link: `/duel/${duelId}`,
+        link: `/duel/${m.duelId}`,
       }),
     ),
   );
-  logger.info('torneio: partida criada', { tid, round, duelId });
 }
+
+// Ordem das posições na chave pra que 1º e 2º só se cruzem na final
+// (8: 1x8, 4x5, 2x7, 3x6). No mata-mata puro os seeds são sorteados.
+function bracketOrder(size: number): number[] {
+  let order = [0];
+  while (order.length < size) {
+    const n = order.length * 2;
+    order = order.flatMap(i => [i, n - 1 - i]);
+  }
+  return order;
+}
+
+// Monta a 1ª rodada do mata-mata. Byes ficam com os melhores seeds, e bye
+// nunca pega bye. Devolve as partidas criadas e os byes a fechar depois.
+function createBracket(
+  tx: Transaction,
+  tRef: DocumentReference,
+  t: DocumentData,
+  seeds: string[],
+) {
+  let size = 2;
+  while (size < seeds.length) size *= 2;
+  const rounds = Math.log2(size);
+  const order = bracketOrder(size);
+  const created: Created[] = [];
+  const byes: { id: string; player: string }[] = [];
+  for (let slot = 0; slot < size / 2; slot++) {
+    const a = seeds[order[slot * 2]];
+    const b = seeds[order[slot * 2 + 1]] ?? null;
+    const id = bracketId(1, slot);
+    const ref = tRef.collection('matches').doc(id);
+    const base = {
+      round: 1,
+      slot,
+      stage: 'top',
+      winnerUid: null,
+      result: null,
+    };
+    if (b) {
+      const label = roundLabel(1, rounds);
+      const duelId = createMatchDuel(
+        tx,
+        tRef,
+        t,
+        { id, round: 1, stage: 'top', label },
+        [a, b],
+      );
+      tx.create(ref, { ...base, players: [a, b], status: 'active', duelId });
+      created.push({ label, players: [a, b], duelId });
+    } else {
+      tx.create(ref, {
+        ...base,
+        players: [a, null],
+        status: 'pending',
+        duelId: null,
+      });
+      byes.push({ id, player: a });
+    }
+  }
+  return { rounds, created, byes };
+}
+
+// --- Suíço -----------------------------------------------------------------
+
+type SwissPlayer = {
+  uid: string;
+  points: number;
+  wins: number;
+  losses: number;
+  opponents: string[];
+  hadBye: boolean;
+};
+
+const MIN_WIN_RATE = 1 / 3;
+const winRate = (p: SwissPlayer) =>
+  Math.max(MIN_WIN_RATE, p.wins / Math.max(1, p.wins + p.losses));
+
+// Classificação: pontos, % de vitórias dos adversários (mín. 33% cada) e %
+// dos adversários dos adversários. Bye conta vitória mas não adversário.
+function standings(players: SwissPlayer[]): SwissPlayer[] {
+  const byUid = new Map(players.map(p => [p.uid, p]));
+  const avg = (values: number[]) =>
+    values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
+  const omw = new Map(
+    players.map(p => [
+      p.uid,
+      avg(p.opponents.map(o => winRate(byUid.get(o)!))),
+    ]),
+  );
+  const oomw = new Map(
+    players.map(p => [p.uid, avg(p.opponents.map(o => omw.get(o) ?? 0))]),
+  );
+  return [...players].sort(
+    (a, b) =>
+      b.points - a.points ||
+      omw.get(b.uid)! - omw.get(a.uid)! ||
+      oomw.get(b.uid)! - oomw.get(a.uid)!,
+  );
+}
+
+// Junta quem tem a mesma pontuação, sem repetir adversário (com volta atrás
+// quando trava). Com número ímpar, o pior colocado sem bye folga.
+function pairSwiss(players: SwissPlayer[]): {
+  pairs: [string, string][];
+  bye: string | null;
+} {
+  const ordered = [...shuffle(players)].sort((a, b) => b.points - a.points);
+  let bye: string | null = null;
+  if (ordered.length % 2 === 1) {
+    const idx = [...ordered].reverse().findIndex(p => !p.hadBye);
+    const pick = ordered.length - 1 - (idx === -1 ? 0 : idx);
+    bye = ordered[pick].uid;
+    ordered.splice(pick, 1);
+  }
+  let budget = 20000;
+  const solve = (rest: SwissPlayer[]): [string, string][] | null => {
+    if (rest.length === 0) return [];
+    if (--budget < 0) return null;
+    const [first, ...others] = rest;
+    for (let i = 0; i < others.length; i++) {
+      if (first.opponents.includes(others[i].uid)) continue;
+      const tail = solve([...others.slice(0, i), ...others.slice(i + 1)]);
+      if (tail) return [[first.uid, others[i].uid], ...tail];
+    }
+    return null;
+  };
+  // Sem saída sem revanche (raro, no fim de suíço pequeno): aceita revanche.
+  const pairs =
+    solve(ordered) ??
+    Array.from(
+      { length: ordered.length / 2 },
+      (_, i) =>
+        [ordered[2 * i].uid, ordered[2 * i + 1].uid] as [string, string],
+    );
+  return { pairs, bye };
+}
+
+function createSwissRound(
+  tx: Transaction,
+  tRef: DocumentReference,
+  t: DocumentData,
+  round: number,
+  players: SwissPlayer[],
+): { created: Created[]; bye: string | null } {
+  const { pairs, bye } = pairSwiss(players);
+  const label = swissLabel(round, t.swissRounds);
+  const created: Created[] = [];
+  pairs.forEach((pair, table) => {
+    const id = swissId(round, table);
+    const duelId = createMatchDuel(
+      tx,
+      tRef,
+      t,
+      { id, round, stage: 'swiss', label },
+      pair,
+    );
+    tx.create(tRef.collection('matches').doc(id), {
+      round,
+      slot: table,
+      stage: 'swiss',
+      players: pair,
+      status: 'active',
+      duelId,
+      winnerUid: null,
+      result: null,
+    });
+    created.push({ label, players: pair, duelId });
+  });
+  if (bye) {
+    tx.create(tRef.collection('matches').doc(swissId(round, pairs.length)), {
+      round,
+      slot: pairs.length,
+      stage: 'swiss',
+      players: [bye, null],
+      status: 'done',
+      duelId: null,
+      winnerUid: bye,
+      result: 'bye',
+    });
+  }
+  return { created, bye };
+}
+
+// Bye vale vitória (3 pontos), sem adversário.
+function applyBye(p: SwissPlayer) {
+  p.points += 3;
+  p.wins += 1;
+  p.hadBye = true;
+}
+
+const swissFields = (p: SwissPlayer) => ({
+  points: p.points,
+  wins: p.wins,
+  losses: p.losses,
+  opponents: p.opponents,
+  hadBye: p.hadBye,
+});
+
+const toSwissPlayer = (doc: DocumentData, uid: string): SwissPlayer => ({
+  uid,
+  points: doc.points ?? 0,
+  wins: doc.wins ?? 0,
+  losses: doc.losses ?? 0,
+  opponents: doc.opponents ?? [],
+  hadBye: !!doc.hadBye,
+});
+
+// --- Início ----------------------------------------------------------------
 
 export const startTournament = onCall(async request => {
   const uid = requireAuth(request.auth?.uid);
   const tRef = tournaments.doc(String(request.data?.id ?? ''));
 
   const started = await db.runTransaction(async tx => {
-    const snap = await tx.get(tRef);
-    const t = snap.data();
+    const t = (await tx.get(tRef)).data();
     if (!t) throw new HttpsError('not-found', 'Torneio não encontrado.');
     if (t.organizerUid !== uid)
       throw new HttpsError(
@@ -515,12 +735,6 @@ export const startTournament = onCall(async request => {
       );
     if (t.status !== 'open')
       throw new HttpsError('failed-precondition', 'Esse torneio já começou.');
-    if (t.format !== 'single') {
-      throw new HttpsError(
-        'unimplemented',
-        'O suíço ainda está chegando. Por enquanto, só dá para iniciar torneios mata-mata.',
-      );
-    }
     if ((t.startsAt as Timestamp).toMillis() - CHECKIN_WINDOW_MS > Date.now()) {
       throw new HttpsError(
         'failed-precondition',
@@ -529,111 +743,105 @@ export const startTournament = onCall(async request => {
     }
     const players = await tx.get(tRef.collection('players'));
     const checked = players.docs.filter(p => p.get('checkedIn'));
-    if (checked.length < 2)
+    const min = t.format === 'swiss' ? 4 : 2;
+    if (checked.length < min) {
       throw new HttpsError(
         'failed-precondition',
-        'É preciso pelo menos 2 jogadores com check-in.',
+        `É preciso pelo menos ${min} jogadores com check-in.`,
       );
+    }
 
     // Quem não fez check-in sai do torneio e recebe as estrelas de volta.
     for (const p of players.docs.filter(p => !p.get('checkedIn'))) {
       const locked = p.get('starsLocked') ?? 0;
-      if (locked > 0)
+      if (locked > 0) {
         tx.update(users.doc(p.id), {
           [walletPath(t.category, 'lockedStars')]: FieldValue.increment(
             negate(locked),
           ),
         });
+      }
       tx.delete(p.ref);
     }
-
-    // Chave: tamanho = potência de 2; byes ficam pros primeiros sorteados
-    // (posição i enfrenta a posição size-1-i), então bye nunca pega bye.
-    const seeds = shuffle(checked.map(p => p.id));
-    let size = 2;
-    while (size < seeds.length) size *= 2;
-    const rounds = Math.log2(size);
-    const tWithRounds = { ...t, rounds };
-    const created: {
-      round: number;
-      players: [string, string];
-      duelId: string;
-    }[] = [];
-    const byes: { id: string; player: string }[] = [];
-    for (let slot = 0; slot < size / 2; slot++) {
-      const a = seeds[slot];
-      const b = seeds[size - 1 - slot] ?? null;
-      const ref = tRef.collection('matches').doc(matchId(1, slot));
-      if (b) {
-        const duelId = createMatchDuel(tx, tRef, tWithRounds, 1, slot, [a, b]);
-        tx.create(ref, {
-          round: 1,
-          slot,
-          players: [a, b],
-          status: 'active',
-          duelId,
-          winnerUid: null,
-          result: null,
-        });
-        created.push({ round: 1, players: [a, b], duelId });
-      } else {
-        tx.create(ref, {
-          round: 1,
-          slot,
-          players: [a, null],
-          status: 'pending',
-          duelId: null,
-          winnerUid: null,
-          result: null,
-        });
-        byes.push({ id: matchId(1, slot), player: a });
-      }
-    }
-    tx.update(tRef, {
+    const uids = shuffle(checked.map(p => p.id));
+    const common = {
       status: 'running',
-      rounds,
       currentRound: 1,
-      playerUids: seeds,
-      playerCount: seeds.length,
+      playerUids: uids,
+      playerCount: uids.length,
       startedAt: FieldValue.serverTimestamp(),
-    });
-    return { t: tWithRounds, created, byes };
+    };
+
+    if (t.format === 'swiss') {
+      const plan = swissPlan(uids.length);
+      const tSwiss = { ...t, swissRounds: plan.rounds, topCut: plan.topCut };
+      const fresh = uids.map(u => toSwissPlayer({}, u));
+      const { created, bye } = createSwissRound(tx, tRef, tSwiss, 1, fresh);
+      for (const p of fresh) {
+        if (p.uid === bye) applyBye(p);
+        tx.update(tRef.collection('players').doc(p.uid), swissFields(p));
+      }
+      tx.update(tRef, {
+        ...common,
+        stage: 'swiss',
+        swissRounds: plan.rounds,
+        topCut: plan.topCut,
+        rounds: null,
+      });
+      return {
+        t: tSwiss,
+        created,
+        byes: [] as { id: string; player: string }[],
+      };
+    }
+
+    const bracket = createBracket(tx, tRef, { ...t, rounds: null }, uids);
+    tx.update(tRef, { ...common, stage: 'top', rounds: bracket.rounds });
+    return {
+      t: { ...t, rounds: bracket.rounds },
+      created: bracket.created,
+      byes: bracket.byes,
+    };
   });
 
   for (const bye of started.byes)
     await settleAndAdvance(tRef, bye.id, bye.player, 'bye');
-  await Promise.all(
-    started.created.map(m =>
-      notifyMatch(started.t, tRef.id, m.round, m.players, m.duelId),
-    ),
-  );
+  await Promise.all(started.created.map(m => notifyMatch(started.t, m)));
   return { ok: true };
 });
 
-// Fecha uma partida e, se a irmã já terminou, monta a próxima. Devolve o
-// que precisa continuar fora da transação (bye em cascata, fim do torneio).
-async function settleMatch(
+// --- Fechar partidas -------------------------------------------------------
+
+type SettleOut = {
+  next?: { id: string; winner: string | null };
+  finished?: boolean;
+  created?: Created[];
+  byes?: { id: string; player: string }[];
+  t?: DocumentData;
+};
+
+// Mata-mata: fecha a partida e, se a irmã já terminou, monta a próxima.
+async function settleBracketMatch(
   tRef: DocumentReference,
   id: string,
   winnerUid: string | null,
   result: MatchResult,
-): Promise<{
-  next?: { id: string; winner: string | null };
-  finished?: boolean;
-  created?: { round: number; players: [string, string]; duelId: string };
-  t?: DocumentData;
-}> {
+): Promise<SettleOut> {
   return db.runTransaction(async tx => {
-    const tSnap = await tx.get(tRef);
-    const t = tSnap.data();
+    const t = (await tx.get(tRef)).data();
     const matchRef = tRef.collection('matches').doc(id);
     const match = (await tx.get(matchRef)).data();
     if (!t || !match || match.status === 'done' || t.status !== 'running')
       return {};
     const { round, slot } = match as { round: number; slot: number };
     const last = round === t.rounds;
-    const siblingRef = tRef.collection('matches').doc(matchId(round, slot ^ 1));
-    const sibling = last ? undefined : (await tx.get(siblingRef)).data();
+    const sibling = last
+      ? undefined
+      : (
+          await tx.get(
+            tRef.collection('matches').doc(bracketId(round, slot ^ 1)),
+          )
+        ).data();
 
     tx.update(matchRef, {
       status: 'done',
@@ -651,38 +859,142 @@ async function settleMatch(
         : [sibling.winnerUid, winnerUid];
     const nextRound = round + 1;
     const nextSlot = slot >> 1;
-    const nextRef = tRef
-      .collection('matches')
-      .doc(matchId(nextRound, nextSlot));
+    const nextId = bracketId(nextRound, nextSlot);
+    const nextRef = tRef.collection('matches').doc(nextId);
+    const base = {
+      round: nextRound,
+      slot: nextSlot,
+      stage: 'top',
+      winnerUid: null,
+      result: null,
+    };
     const present = winners.filter((w): w is string => !!w);
     if (present.length === 2) {
       const pair = present as [string, string];
-      const duelId = createMatchDuel(tx, tRef, t, nextRound, nextSlot, pair);
-      tx.set(nextRef, {
-        round: nextRound,
-        slot: nextSlot,
-        players: pair,
-        status: 'active',
-        duelId,
-        winnerUid: null,
-        result: null,
-      });
+      const label = roundLabel(nextRound, t.rounds);
+      const duelId = createMatchDuel(
+        tx,
+        tRef,
+        t,
+        { id: nextId, round: nextRound, stage: 'top', label },
+        pair,
+      );
+      tx.set(nextRef, { ...base, players: pair, status: 'active', duelId });
       if (nextRound > (t.currentRound ?? 1))
         tx.update(tRef, { currentRound: nextRound });
-      return { created: { round: nextRound, players: pair, duelId }, t };
+      return { created: [{ label, players: pair, duelId }], t };
     }
     // Um lado vazio (derrota dupla antes): quem sobrou passa direto.
     tx.set(nextRef, {
-      round: nextRound,
-      slot: nextSlot,
+      ...base,
       players: winners,
       status: 'pending',
       duelId: null,
-      winnerUid: null,
-      result: null,
+    });
+    return { next: { id: nextId, winner: present[0] ?? null } };
+  });
+}
+
+// Suíço: fecha a partida, soma os pontos e, se a rodada acabou, pareia a
+// próxima - ou, na última, leva o top cut pro mata-mata (ou encerra).
+async function settleSwissMatch(
+  tRef: DocumentReference,
+  id: string,
+  winnerUid: string | null,
+): Promise<SettleOut> {
+  return db.runTransaction(async tx => {
+    const t = (await tx.get(tRef)).data();
+    const matchRef = tRef.collection('matches').doc(id);
+    const match = (await tx.get(matchRef)).data();
+    if (
+      !t ||
+      !match ||
+      match.status === 'done' ||
+      t.status !== 'running' ||
+      t.stage !== 'swiss'
+    )
+      return {};
+    const round = match.round as number;
+    const roundMatches = await tx.get(
+      tRef
+        .collection('matches')
+        .where('round', '==', round)
+        .where('stage', '==', 'swiss'),
+    );
+    const playerDocs = await tx.get(tRef.collection('players'));
+
+    // Pontos desta partida (vitória 3, derrota e derrota dupla 0).
+    const [a, b] = match.players as [string, string];
+    const players = new Map(
+      playerDocs.docs.map(d => [d.id, toSwissPlayer(d.data(), d.id)]),
+    );
+    const changed = new Set([a, b]);
+    for (const uid of [a, b]) {
+      const p = players.get(uid)!;
+      const won = uid === winnerUid;
+      p.points += won ? 3 : 0;
+      p.wins += won ? 1 : 0;
+      p.losses += won ? 0 : 1;
+      p.opponents.push(uid === a ? b : a);
+    }
+    // Cada documento é escrito uma vez só, no fim.
+    const writePlayers = () =>
+      changed.forEach(uid =>
+        tx.update(
+          tRef.collection('players').doc(uid),
+          swissFields(players.get(uid)!),
+        ),
+      );
+    tx.update(matchRef, {
+      status: 'done',
+      winnerUid,
+      result: winnerUid ? 'win' : 'double_loss',
+      endedAt: FieldValue.serverTimestamp(),
+    });
+
+    const roundOver = roundMatches.docs.every(
+      d => d.id === id || d.get('status') === 'done',
+    );
+    if (!roundOver) {
+      writePlayers();
+      return {};
+    }
+
+    const all = [...players.values()];
+    if (round < t.swissRounds) {
+      const { created, bye } = createSwissRound(tx, tRef, t, round + 1, all);
+      if (bye) {
+        applyBye(players.get(bye)!);
+        changed.add(bye);
+      }
+      writePlayers();
+      tx.update(tRef, { currentRound: round + 1 });
+      return { created, t };
+    }
+
+    writePlayers();
+    const ranked = standings(all).map(p => p.uid);
+    if (!t.topCut) {
+      // Sem top cut: a classificação do suíço é o resultado final.
+      payout(tx, tRef, t, playerDocs.docs, ranked.slice(0, 4), ranked);
+      return { t: { ...t, championUid: ranked[0] }, created: [] };
+    }
+    const bracket = createBracket(
+      tx,
+      tRef,
+      { ...t, rounds: null },
+      ranked.slice(0, t.topCut),
+    );
+    tx.update(tRef, {
+      stage: 'top',
+      rounds: bracket.rounds,
+      currentRound: 1,
+      finalStandings: ranked,
     });
     return {
-      next: { id: matchId(nextRound, nextSlot), winner: present[0] ?? null },
+      created: bracket.created,
+      byes: bracket.byes,
+      t: { ...t, rounds: bracket.rounds },
     };
   });
 }
@@ -693,27 +1005,31 @@ async function settleAndAdvance(
   winnerUid: string | null,
   result: MatchResult,
 ) {
+  if (id.startsWith('w')) {
+    const out = await settleSwissMatch(tRef, id, winnerUid);
+    if (out.t && out.created)
+      await Promise.all(out.created.map(m => notifyMatch(out.t!, m)));
+    for (const bye of out.byes ?? [])
+      await settleAndAdvance(tRef, bye.id, bye.player, 'bye');
+    if (out.t?.championUid)
+      await notifyFinished(tRef, out.t, out.t.championUid);
+    return;
+  }
   let current: {
     id: string;
     winner: string | null;
     result: MatchResult;
   } | null = { id, winner: winnerUid, result };
   while (current) {
-    const out = await settleMatch(
+    const out = await settleBracketMatch(
       tRef,
       current.id,
       current.winner,
       current.result,
     );
     if (out.created && out.t)
-      await notifyMatch(
-        out.t,
-        tRef.id,
-        out.created.round,
-        out.created.players,
-        out.created.duelId,
-      );
-    if (out.finished) await finishTournament(tRef);
+      await Promise.all(out.created.map(m => notifyMatch(out.t!, m)));
+    if (out.finished) await finishBracket(tRef);
     current = out.next
       ? {
           id: out.next.id,
@@ -724,80 +1040,97 @@ async function settleAndAdvance(
   }
 }
 
-// Bolo de estrelas: 50% campeão, 30% vice, 10% para cada semifinalista;
-// sobra de arredondamento (e prêmios sem dono) vai pro campeão.
+// --- Fim e bolo de estrelas -------------------------------------------------
+
+// 50% campeão, 30% vice, 10% para 3º e 4º; sobra de arredondamento (e
+// prêmio sem dono) vai pro campeão. Sem campeão, todo mundo recebe de volta.
 const PRIZE_SHARES = [0.5, 0.3, 0.1, 0.1];
 
-async function finishTournament(tRef: DocumentReference) {
+function payout(
+  tx: Transaction,
+  tRef: DocumentReference,
+  t: DocumentData,
+  players: DocumentData[],
+  placements: (string | null)[],
+  finalStandings?: string[],
+) {
+  const champion = placements[0] ?? null;
+  const pot = players.reduce((sum, p) => sum + (p.get('starsLocked') ?? 0), 0);
+  const delta = new Map<string, number>();
+  const add = (uid: string, n: number) =>
+    delta.set(uid, (delta.get(uid) ?? 0) + n);
+  if (champion && pot > 0) {
+    let paid = 0;
+    placements.forEach((uid, i) => {
+      if (!uid || i === 0) return;
+      const prize = Math.floor(pot * PRIZE_SHARES[i]);
+      add(uid, prize);
+      paid += prize;
+    });
+    add(champion, pot - paid);
+  }
+  for (const p of players) {
+    const locked = p.get('starsLocked') ?? 0;
+    const change = (champion ? negate(locked) : 0) + (delta.get(p.id) ?? 0);
+    tx.update(users.doc(p.id), {
+      [walletPath(t.category, 'lockedStars')]: FieldValue.increment(
+        negate(locked),
+      ),
+      [walletPath(t.category, 'stars')]: FieldValue.increment(change),
+    });
+  }
+  tx.update(tRef, {
+    status: 'finished',
+    championUid: champion,
+    placements: placements.slice(0, 4),
+    ...(finalStandings ? { finalStandings } : {}),
+    pot,
+    finishedAt: FieldValue.serverTimestamp(),
+  });
+}
+
+async function finishBracket(tRef: DocumentReference) {
   const result = await db.runTransaction(async tx => {
     const t = (await tx.get(tRef)).data();
     if (!t || t.status !== 'running') return null;
     const matches = tRef.collection('matches');
-    const final = (await tx.get(matches.doc(matchId(t.rounds, 0)))).data()!;
+    const final = (await tx.get(matches.doc(bracketId(t.rounds, 0)))).data()!;
     const semis =
       t.rounds >= 2
         ? await Promise.all(
             [0, 1].map(async s =>
-              (await tx.get(matches.doc(matchId(t.rounds - 1, s)))).data(),
+              (await tx.get(matches.doc(bracketId(t.rounds - 1, s)))).data(),
             ),
           )
         : [];
     const players = await tx.get(tRef.collection('players'));
-
     const loserOf = (m?: DocumentData) =>
       m && m.result === 'win'
         ? (m.players as string[]).find(p => p !== m.winnerUid) ?? null
         : null;
-    const champion: string | null = final.winnerUid ?? null;
-    const placements = [champion, loserOf(final), ...semis.map(loserOf)];
-
-    const pot = players.docs.reduce(
-      (sum, p) => sum + (p.get('starsLocked') ?? 0),
-      0,
-    );
-    const delta = new Map<string, number>();
-    const add = (uid: string, n: number) =>
-      delta.set(uid, (delta.get(uid) ?? 0) + n);
-    if (champion && pot > 0) {
-      let paid = 0;
-      placements.forEach((uid, i) => {
-        if (!uid || i === 0) return;
-        const prize = Math.floor(pot * PRIZE_SHARES[i]);
-        add(uid, prize);
-        paid += prize;
-      });
-      add(champion, pot - paid);
-    }
-    for (const p of players.docs) {
-      const locked = p.get('starsLocked') ?? 0;
-      // Sem campeão (final com derrota dupla), todo mundo recebe a inscrição de volta.
-      const change = (champion ? negate(locked) : 0) + (delta.get(p.id) ?? 0);
-      tx.update(users.doc(p.id), {
-        [walletPath(t.category, 'lockedStars')]: FieldValue.increment(
-          negate(locked),
-        ),
-        [walletPath(t.category, 'stars')]: FieldValue.increment(change),
-      });
-    }
-    tx.update(tRef, {
-      status: 'finished',
-      championUid: champion,
-      placements: placements.slice(0, 4),
-      pot,
-      finishedAt: FieldValue.serverTimestamp(),
-    });
-    return { t, champion, players: players.docs.map(p => p.id) };
+    const placements = [
+      final.winnerUid ?? null,
+      loserOf(final),
+      ...semis.map(loserOf),
+    ];
+    payout(tx, tRef, t, players.docs, placements);
+    return { t, champion: placements[0] };
   });
-  if (!result?.champion) return;
-  const nick = (await users.doc(result.champion).get()).get('nick') ?? '...';
+  if (result?.champion) await notifyFinished(tRef, result.t, result.champion);
+}
+
+async function notifyFinished(
+  tRef: DocumentReference,
+  t: DocumentData,
+  champion: string,
+) {
+  const players = (await tRef.collection('players').get()).docs.map(d => d.id);
+  const nick = (await users.doc(champion).get()).get('nick') ?? '...';
   await Promise.all(
-    result.players.map(uid =>
+    players.map(uid =>
       notifyUser(uid, {
-        title: `${result.t.name} terminou`,
-        body:
-          uid === result.champion
-            ? 'Você é o campeão!'
-            : `@${nick} é o campeão.`,
+        title: `${t.name} terminou`,
+        body: uid === champion ? 'Você é o campeão!' : `@${nick} é o campeão.`,
         link: `/tournament/${tRef.id}`,
       }),
     ),
@@ -806,7 +1139,7 @@ async function finishTournament(tRef: DocumentReference) {
 
 // Acompanha o duelo de cada partida: o estado (aguardando confirmação, em
 // disputa) vai pra chave, pro organizador ver onde agir; no fim (confirmado,
-// prazo ou decisão do organizador), avança a chave.
+// prazo ou decisão do organizador), avança o torneio.
 export const onTournamentDuelEnded = onDocumentUpdated(
   { document: 'duels/{duelId}', database: 'duel-start' },
   async event => {
@@ -833,7 +1166,7 @@ export const onTournamentDuelEnded = onDocumentUpdated(
 );
 
 // Organizador destrava uma partida parada: dá a vitória a um lado (W.O.) ou
-// derrota dupla. O trigger acima avança a chave.
+// derrota dupla. O trigger acima avança o torneio.
 export const resolveTournamentMatch = onCall(async request => {
   const uid = requireAuth(request.auth?.uid);
   const tRef = tournaments.doc(String(request.data?.id ?? ''));
@@ -877,9 +1210,9 @@ export const resolveTournamentMatch = onCall(async request => {
   return { ok: true };
 });
 
-// Lembrete do prazo, de hora em hora: quem ainda
-// não informou o resultado recebe um aviso quando faltam menos de 24 h.
-// Só em rodadas de 1 dia ou mais - na de 50 min o jogador está na mesa.
+// Lembrete do prazo, de hora em hora: quem ainda não informou o resultado
+// recebe um aviso quando faltam menos de 24 h. Só em rodadas de 1 dia ou
+// mais - na de 50 min o jogador está na mesa.
 const REMINDER_MS = 24 * 60 * 60 * 1000;
 
 export const remindTournamentDeadlines = onSchedule(

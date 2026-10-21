@@ -8,7 +8,11 @@ import { spacing } from '../../../../configs/theme';
 import { TournamentProps } from '../../../../navigation/props';
 import { useAppSelector } from '../../../../redux/store';
 import { duelErrorMessage } from '../../../../services/duels/duels.service';
-import { CATEGORY_ICON, CATEGORY_LABEL, FORMAT_LABEL } from '../../../../services/duels/duels.types';
+import {
+  CATEGORY_ICON,
+  CATEGORY_LABEL,
+  FORMAT_LABEL,
+} from '../../../../services/duels/duels.types';
 import { usePublicProfiles } from '../../../../services/profile/usePublicProfiles';
 import {
   cancelTournament,
@@ -29,6 +33,7 @@ import {
   formatMoney,
   formatStart,
   roundLabel,
+  swissStandings,
   roundDeadlineLabel,
   Tournament,
   TOURNAMENT_FORMAT_LABEL,
@@ -51,6 +56,11 @@ import {
   ChampionLabel,
   Rounds,
   RoundTitle,
+  StandingNick,
+  StandingNum,
+  StandingPos,
+  StandingRow,
+  StandingsTable,
   CopyChip,
   CopyChipText,
   Description,
@@ -103,13 +113,19 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   const resolveSheetRef = useRef<BottomSheetModal>(null);
 
   useEffect(() => subscribeTournament(tournamentId, setT), [tournamentId]);
-  useEffect(() => subscribeTournamentPlayers(tournamentId, setPlayers), [tournamentId]);
+  useEffect(
+    () => subscribeTournamentPlayers(tournamentId, setPlayers),
+    [tournamentId],
+  );
   useEffect(() => subscribeMatches(tournamentId, setMatches), [tournamentId]);
 
   const isOrganizer = !!t && t.organizerUid === uid;
   const isPrivate = t?.visibility === 'private';
   useEffect(() => {
-    if (isOrganizer && isPrivate) getTournamentPassword(tournamentId).then(setPassword).catch(() => undefined);
+    if (isOrganizer && isPrivate)
+      getTournamentPassword(tournamentId)
+        .then(setPassword)
+        .catch(() => undefined);
   }, [isOrganizer, isPrivate, tournamentId]);
 
   const uids = useMemo(
@@ -126,7 +142,10 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     return (
       <Screen>
         <ScreenHeader title="Torneio" onBack={() => navigation.goBack()} />
-        <ActivityIndicator color={colors.gold.main} style={{ marginTop: spacing.xxl }} />
+        <ActivityIndicator
+          color={colors.gold.main}
+          style={{ marginTop: spacing.xxl }}
+        />
       </Screen>
     );
   }
@@ -143,10 +162,13 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
 
   const joined = t.playerUids.includes(uid);
   const open = t.status === 'open' && t.startsAt > Date.now();
-  const checkinOpen = t.status === 'open' && Date.now() >= t.startsAt - CHECKIN_WINDOW_MS;
+  const checkinOpen =
+    t.status === 'open' && Date.now() >= t.startsAt - CHECKIN_WINDOW_MS;
   const me = players.find(p => p.uid === uid);
   const checkedInCount = players.filter(p => p.checkedIn).length;
-  const myMatch = matches.find(m => m.status === 'active' && m.players.includes(uid));
+  const myMatch = matches.find(
+    m => m.status === 'active' && m.players.includes(uid),
+  );
   const rounds = t.rounds ?? 0;
   const full = t.playerCount >= t.maxPlayers;
   const organizer = profiles[t.organizerUid];
@@ -163,7 +185,8 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
         const go = await showDialog({
           icon: CATEGORY_ICON[game],
           title: `Cadastre seu ID do ${CATEGORY_LABEL[game]}`,
-          message: 'Nos torneios online, o oponente usa o seu ID para te adicionar no jogo.',
+          message:
+            'Nos torneios online, o oponente usa o seu ID para te adicionar no jogo.',
           confirmLabel: 'Cadastrar agora',
           cancelLabel: 'Depois',
         });
@@ -179,8 +202,16 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
 
   const join = async (pw?: string) => {
     const details = [
-      t.entryFeeCents ? `Inscrição de ${formatMoney(t.entryFeeCents)} paga por Pix ao organizador.` : null,
-      t.starsEntry ? `${t.starsEntry} estrelas do ${CATEGORY_LABEL[t.category]} ficam travadas até o fim.` : null,
+      t.entryFeeCents
+        ? `Inscrição de ${formatMoney(
+            t.entryFeeCents,
+          )} paga por Pix ao organizador.`
+        : null,
+      t.starsEntry
+        ? `${t.starsEntry} estrelas do ${
+            CATEGORY_LABEL[t.category]
+          } ficam travadas até o fim.`
+        : null,
     ].filter(Boolean);
     if (details.length) {
       const ok = await showDialog({
@@ -202,7 +233,9 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     const ok = await showDialog({
       icon: 'exit-run',
       title: 'Sair do torneio?',
-      message: t.starsEntry ? 'As estrelas da inscrição voltam para a sua carteira.' : undefined,
+      message: t.starsEntry
+        ? 'As estrelas da inscrição voltam para a sua carteira.'
+        : undefined,
       confirmLabel: 'Sair',
       cancelLabel: 'Ficar',
       destructive: true,
@@ -214,7 +247,8 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     const ok = await showDialog({
       icon: 'close-octagon',
       title: 'Cancelar o torneio?',
-      message: 'Todos os inscritos saem e as estrelas da inscrição voltam. Isso não pode ser desfeito.',
+      message:
+        'Todos os inscritos saem e as estrelas da inscrição voltam. Isso não pode ser desfeito.',
       confirmLabel: 'Cancelar torneio',
       cancelLabel: 'Voltar',
       destructive: true,
@@ -224,18 +258,29 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
 
   const share = () =>
     Share.share({
-      message: `Torneio "${t.name}" no Duel Stars (${CATEGORY_LABEL[t.category]}, ${formatStart(t.startsAt)}). Abra o app, vá em Torneios → Código e digite ${t.code}${
+      message: `Torneio "${t.name}" no Duel Stars (${
+        CATEGORY_LABEL[t.category]
+      }, ${formatStart(
+        t.startsAt,
+      )}). Abra o app, vá em Torneios → Código e digite ${t.code}${
         password ? `. Senha: ${password}` : ''
       }`,
     }).catch(() => undefined);
 
   const info: [string, string][] = [
-    ['Formato', `${TOURNAMENT_FORMAT_LABEL[t.format]} · ${FORMAT_LABEL[t.matchFormat]}`],
+    [
+      'Formato',
+      `${TOURNAMENT_FORMAT_LABEL[t.format]} · ${FORMAT_LABEL[t.matchFormat]}`,
+    ],
     ['Vagas', `${t.playerCount} de ${t.maxPlayers}`],
     ['Prazo da rodada', roundDeadlineLabel(t.roundMinutes)],
     ['Inscrição', t.entryFeeCents ? formatMoney(t.entryFeeCents) : 'Grátis'],
   ];
-  if (t.starsEntry) info.push(['Estrelas', `${t.starsEntry} por jogador · bolo de ${t.starsEntry * t.playerCount}`]);
+  if (t.starsEntry)
+    info.push([
+      'Estrelas',
+      `${t.starsEntry} por jogador · bolo de ${t.starsEntry * t.playerCount}`,
+    ]);
   if (t.minStars) info.push(['Mínimo para entrar', `${t.minStars} estrelas`]);
 
   let footer: React.ReactNode = null;
@@ -247,7 +292,11 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
         size="lg"
         disabled={full}
         loading={busy}
-        onPress={() => (isPrivate && !isOrganizer ? passwordSheetRef.current?.present() : join(password ?? undefined))}
+        onPress={() =>
+          isPrivate && !isOrganizer
+            ? passwordSheetRef.current?.present()
+            : join(password ?? undefined)
+        }
       />
     );
   } else if (t.status === 'open' && joined) {
@@ -263,9 +312,20 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
           />
         )}
         {checkinOpen && me?.checkedIn && (
-          <Button label="Check-in feito · aguardando o início" icon="check-circle" variant="secondary" disabled onPress={() => undefined} />
+          <Button
+            label="Check-in feito · aguardando o início"
+            icon="check-circle"
+            variant="secondary"
+            disabled
+            onPress={() => undefined}
+          />
         )}
-        <Button label="Sair do torneio" variant="ghost" loading={busy} onPress={leave} />
+        <Button
+          label="Sair do torneio"
+          variant="ghost"
+          loading={busy}
+          onPress={leave}
+        />
       </>
     );
   } else if (myMatch?.duelId) {
@@ -304,40 +364,89 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   const resolve = async (winnerUid: string | null) => {
     if (!resolving) return;
     resolveSheetRef.current?.dismiss();
-    await run(() => resolveMatch(t.id, resolving.id, winnerUid), 'Partida decidida');
+    await run(
+      () => resolveMatch(t.id, resolving.id, winnerUid),
+      'Partida decidida',
+    );
   };
 
-  const roundNumbers = [...new Set(matches.map(m => m.round))];
+  // Grupos na ordem da chave: rodadas do suíço, depois as do mata-mata.
+  const groups = [...new Set(matches.map(m => `${m.stage}-${m.round}`))].map(
+    key => {
+      const [stage, round] = key.split('-');
+      const n = Number(round);
+      return {
+        key,
+        title:
+          stage === 'swiss'
+            ? `Suíço · rodada ${n} de ${t.swissRounds ?? n}`
+            : roundLabel(n, rounds),
+        matches: matches.filter(m => `${m.stage}-${m.round}` === key),
+      };
+    },
+  );
+  const showStandings =
+    t.format === 'swiss' && t.status !== 'open' && t.status !== 'cancelled';
+  const table = showStandings ? swissStandings(players) : [];
 
   return (
     <Screen>
       <ScreenHeader title="Torneio" onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
+      >
         {t.status === 'finished' && (
           <Champion>
             <Icon name="crown" size={32} color={colors.gold.main} />
             <ChampionLabel>Campeão</ChampionLabel>
             <ChampionName>
-              {t.championUid ? `@${profiles[t.championUid]?.nick ?? '...'}` : 'Sem campeão'}
+              {t.championUid
+                ? `@${profiles[t.championUid]?.nick ?? '...'}`
+                : 'Sem campeão'}
             </ChampionName>
-            {t.pot > 0 && !!t.championUid && <Meta>Bolo de {t.pot} estrelas dividido entre os primeiros.</Meta>}
+            {t.pot > 0 && !!t.championUid && (
+              <Meta>Bolo de {t.pot} estrelas dividido entre os primeiros.</Meta>
+            )}
           </Champion>
         )}
 
         <Info>
           <MetaRow>
-            <Icon name={CATEGORY_ICON[t.category]} size={16} color={colors.text.secondary} />
+            <Icon
+              name={CATEGORY_ICON[t.category]}
+              size={16}
+              color={colors.text.secondary}
+            />
             <Meta>{CATEGORY_LABEL[t.category]}</Meta>
-            {isPrivate && <Icon name="lock" size={16} color={colors.text.muted} />}
-            <StatusBadge tone={t.status === 'cancelled' ? 'negative' : open ? 'gold' : 'neutral'}>
-              <StatusText tone={t.status === 'cancelled' ? 'negative' : open ? 'gold' : 'neutral'}>
+            {isPrivate && (
+              <Icon name="lock" size={16} color={colors.text.muted} />
+            )}
+            <StatusBadge
+              tone={
+                t.status === 'cancelled'
+                  ? 'negative'
+                  : open
+                  ? 'gold'
+                  : 'neutral'
+              }
+            >
+              <StatusText
+                tone={
+                  t.status === 'cancelled'
+                    ? 'negative'
+                    : open
+                    ? 'gold'
+                    : 'neutral'
+                }
+              >
                 {checkinOpen ? 'Check-in aberto' : STATUS_LABEL[t.status]}
               </StatusText>
             </StatusBadge>
           </MetaRow>
           <Name>{t.name}</Name>
           <Meta>
-            {formatStart(t.startsAt)} · organizado por @{organizer?.nick ?? '...'}
+            {formatStart(t.startsAt)} · organizado por @
+            {organizer?.nick ?? '...'}
           </Meta>
           {!!t.description && <Description>{t.description}</Description>}
         </Info>
@@ -384,7 +493,11 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                 <InfoLabel>Senha</InfoLabel>
                 <CopyChip onPress={() => copy(password, 'Senha')}>
                   <CopyChipText>{password}</CopyChipText>
-                  <Icon name="content-copy" size={14} color={colors.gold.main} />
+                  <Icon
+                    name="content-copy"
+                    size={14}
+                    color={colors.gold.main}
+                  />
                 </CopyChip>
               </InfoRow>
             )}
@@ -398,14 +511,28 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                   onPress={start}
                 />
               ) : (
-                <Meta>O check-in abre 30 minutos antes; aí você inicia o torneio.</Meta>
+                <Meta>
+                  O check-in abre 30 minutos antes; aí você inicia o torneio.
+                </Meta>
               ))}
             {t.status === 'running' && (
-              <Meta>Toque numa partida em andamento para dar W.O. ou derrota dupla.</Meta>
+              <Meta>
+                Toque numa partida em andamento para dar W.O. ou derrota dupla.
+              </Meta>
             )}
-            <Button label="Compartilhar" icon="share-variant" variant="secondary" onPress={share} />
+            <Button
+              label="Compartilhar"
+              icon="share-variant"
+              variant="secondary"
+              onPress={share}
+            />
             {t.status === 'open' && (
-              <Button label="Cancelar torneio" variant="ghost" loading={busy} onPress={cancel} />
+              <Button
+                label="Cancelar torneio"
+                variant="ghost"
+                loading={busy}
+                onPress={cancel}
+              />
             )}
           </OrganizerBox>
         )}
@@ -418,21 +545,36 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
             const profile = profiles[player.uid];
             return (
               <PlayerRow key={player.uid}>
-                <Avatar name={profile?.nick ?? '?'} photoUrl={profile?.photoUrl ?? null} size={36} />
+                <Avatar
+                  name={profile?.nick ?? '?'}
+                  photoUrl={profile?.photoUrl ?? null}
+                  size={36}
+                />
                 <PlayerNick numberOfLines={1}>
                   @{profile?.nick ?? '...'}
                   {player.uid === uid ? ' (você)' : ''}
                 </PlayerNick>
                 {checkinOpen && player.checkedIn && (
-                  <Icon name="check-circle" size={18} color={colors.feedback.positive} />
+                  <Icon
+                    name="check-circle"
+                    size={18}
+                    color={colors.feedback.positive}
+                  />
                 )}
                 {!!t.entryFeeCents && (
                   <PaidChip
                     paid={player.paid}
                     disabled={!isOrganizer}
-                    onPress={() => run(() => setPlayerPaid(t.id, player.uid, !player.paid), 'Pagamento atualizado')}
+                    onPress={() =>
+                      run(
+                        () => setPlayerPaid(t.id, player.uid, !player.paid),
+                        'Pagamento atualizado',
+                      )
+                    }
                   >
-                    <PaidChipText paid={player.paid}>{player.paid ? 'Pago' : 'Pendente'}</PaidChipText>
+                    <PaidChipText paid={player.paid}>
+                      {player.paid ? 'Pago' : 'Pendente'}
+                    </PaidChipText>
                   </PaidChip>
                 )}
               </PlayerRow>
@@ -440,28 +582,64 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
           })
         )}
 
+        {showStandings && (
+          <>
+            <SectionTitle>Classificação do suíço</SectionTitle>
+            {t.stage === 'top' && !!t.topCut && (
+              <Meta>Os {t.topCut} primeiros foram para o mata-mata.</Meta>
+            )}
+            <StandingsTable>
+              <StandingRow header>
+                <StandingPos header>#</StandingPos>
+                <StandingNick header>Jogador</StandingNick>
+                <StandingNum header>Pts</StandingNum>
+                <StandingNum header>V-D</StandingNum>
+                <StandingNum header>Adv.</StandingNum>
+              </StandingRow>
+              {table.map((row, i) => (
+                <StandingRow
+                  key={row.uid}
+                  mine={row.uid === uid}
+                  cut={!!t.topCut && i === t.topCut - 1}
+                >
+                  <StandingPos>{i + 1}</StandingPos>
+                  <StandingNick numberOfLines={1}>
+                    @{profiles[row.uid]?.nick ?? '...'}
+                  </StandingNick>
+                  <StandingNum strong>{row.points}</StandingNum>
+                  <StandingNum>
+                    {row.wins}-{row.losses}
+                  </StandingNum>
+                  <StandingNum>{Math.round(row.omw * 100)}%</StandingNum>
+                </StandingRow>
+              ))}
+            </StandingsTable>
+          </>
+        )}
+
         <SectionTitle>Rodadas</SectionTitle>
         {matches.length === 0 ? (
-          <Empty>As rodadas e o pareamento aparecem aqui quando o torneio começar.</Empty>
+          <Empty>
+            As rodadas e o pareamento aparecem aqui quando o torneio começar.
+          </Empty>
         ) : (
-          roundNumbers.map(round => (
-            <Rounds key={round}>
-              <RoundTitle>{roundLabel(round, rounds)}</RoundTitle>
-              {matches
-                .filter(m => m.round === round)
-                .map(match => {
-                  const tappable =
-                    (match.players.includes(uid) && !!match.duelId) || (isOrganizer && match.status === 'active');
-                  return (
-                    <MatchRow
-                      key={match.id}
-                      match={match}
-                      profiles={profiles}
-                      myUid={uid}
-                      onPress={tappable ? () => openMatch(match) : undefined}
-                    />
-                  );
-                })}
+          groups.map(group => (
+            <Rounds key={group.key}>
+              <RoundTitle>{group.title}</RoundTitle>
+              {group.matches.map(match => {
+                const tappable =
+                  (match.players.includes(uid) && !!match.duelId) ||
+                  (isOrganizer && match.status === 'active');
+                return (
+                  <MatchRow
+                    key={match.id}
+                    match={match}
+                    profiles={profiles}
+                    myUid={uid}
+                    onPress={tappable ? () => openMatch(match) : undefined}
+                  />
+                );
+              })}
             </Rounds>
           ))
         )}
@@ -470,7 +648,10 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
       {!!footer && <Footer>{footer}</Footer>}
 
       <AppSheet ref={resolveSheetRef} title="Decidir partida">
-        <Meta>Use quando a partida travou: alguém não apareceu ou os dois não se acertaram.</Meta>
+        <Meta>
+          Use quando a partida travou: alguém não apareceu ou os dois não se
+          acertaram.
+        </Meta>
         {(resolving?.players ?? [])
           .filter((p): p is string => !!p)
           .map(p => (
@@ -481,7 +662,11 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
               onPress={() => resolve(p)}
             />
           ))}
-        <Button label="Derrota dupla (os dois saem)" variant="ghost" onPress={() => resolve(null)} />
+        <Button
+          label="Derrota dupla (os dois saem)"
+          variant="ghost"
+          onPress={() => resolve(null)}
+        />
       </AppSheet>
 
       <AppSheet ref={passwordSheetRef} title="Torneio privado">
@@ -490,9 +675,18 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
           value={typedPassword}
           onChangeText={setTypedPassword}
           autoCapitalize="none"
-          helper={t.contact ? `Não tem a senha? Peça ao organizador: ${t.contact}` : 'Peça a senha ao organizador.'}
+          helper={
+            t.contact
+              ? `Não tem a senha? Peça ao organizador: ${t.contact}`
+              : 'Peça a senha ao organizador.'
+          }
         />
-        <Button label="Entrar no torneio" disabled={!typedPassword} loading={busy} onPress={() => join(typedPassword)} />
+        <Button
+          label="Entrar no torneio"
+          disabled={!typedPassword}
+          loading={busy}
+          onPress={() => join(typedPassword)}
+        />
       </AppSheet>
     </Screen>
   );

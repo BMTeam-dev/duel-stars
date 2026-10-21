@@ -66,11 +66,15 @@ function toTournament(id: string, data: DocumentData): Tournament {
     status: data.status,
     playerUids: data.playerUids ?? [],
     playerCount: data.playerCount ?? 0,
+    stage: data.stage ?? null,
+    swissRounds: data.swissRounds ?? null,
+    topCut: data.topCut ?? null,
     rounds: data.rounds ?? null,
     currentRound: data.currentRound ?? null,
     championUid: data.championUid ?? null,
     placements: data.placements ?? [],
     pot: data.pot ?? 0,
+    finalStandings: data.finalStandings ?? [],
   };
 }
 
@@ -163,6 +167,10 @@ export function subscribeTournamentPlayers(
           uid: d.id,
           paid: !!d.data().paid,
           checkedIn: !!d.data().checkedIn,
+          points: d.data().points ?? 0,
+          wins: d.data().wins ?? 0,
+          losses: d.data().losses ?? 0,
+          opponents: d.data().opponents ?? [],
           joinedAt: millis(d.data().joinedAt),
         })),
       ),
@@ -195,6 +203,7 @@ export function subscribeMatches(id: string, onChange: (matches: TournamentMatch
             const data = d.data();
             return {
               id: d.id,
+              stage: data.stage ?? 'top',
               round: data.round,
               slot: data.slot,
               players: data.players ?? [],
@@ -205,7 +214,8 @@ export function subscribeMatches(id: string, onChange: (matches: TournamentMatch
               result: data.result ?? null,
             };
           })
-          .sort((a, b) => a.round - b.round || a.slot - b.slot),
+          // Suíço antes do mata-mata; dentro de cada fase, rodada e mesa.
+          .sort((a, b) => (a.stage === b.stage ? 0 : a.stage === 'swiss' ? -1 : 1) || a.round - b.round || a.slot - b.slot),
       ),
     listenerError('subscribeMatches'),
   );

@@ -23,7 +23,6 @@ import {
   isOnlineCategory,
   PublicProfile,
 } from '../../../../services/duels/duels.types';
-import { roundLabel } from '../../../../services/tournaments/tournaments.types';
 import { usePublicProfiles } from '../../../../services/profile/usePublicProfiles';
 import { AppSheet } from '../../../../shared/ui/AppSheet';
 import { Avatar } from '../../../../shared/ui/Avatar';
@@ -192,7 +191,7 @@ function DuelScreen({ navigation, route }: DuelProps) {
         <Stake>
           <Icon name="tournament" size={22} color={colors.gold.main} />
           <StakeLabel>
-            {roundLabel(duel.round ?? 1, duel.rounds ?? 1)}
+            {duel.roundLabel ?? 'Torneio'}
           </StakeLabel>
         </Stake>
       ) : (
