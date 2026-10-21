@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { colors } from '../../../../configs/colors';
 import { Icon } from '../../../../shared/ui/Icon';
 import { toast } from '../../../../shared/ui/toast';
@@ -8,16 +9,16 @@ import {
   Panel,
   PanelNick,
   LpValue,
-  Steps,
-  StepChip,
-  StepText,
+  LastChange,
+  PanelHint,
+  PanelHintText,
   Tools,
   Tool,
   ToolText,
 } from './styles';
+import { LpKeypad } from '../LpKeypad';
 
 const STARTING_LP = 8000;
-const STEPS = [-1000, -500, -100, 500];
 
 type Props = {
   myNick: string;
@@ -31,43 +32,53 @@ type Side = 'me' | 'opponent';
 // que vale é o que os dois informam no fim.
 export function LifePoints({ myNick, opponentNick }: Props) {
   const [lp, setLp] = useState<Record<Side, number>>({ me: STARTING_LP, opponent: STARTING_LP });
-  const [history, setHistory] = useState<Record<Side, number>[]>([]);
+  const [history, setHistory] = useState<{ lp: Record<Side, number>; last: string | null }[]>([]);
+  const [last, setLast] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Side>('opponent');
+  const keypadRef = useRef<BottomSheetModal>(null);
+  const nicks: Record<Side, string> = { me: myNick, opponent: opponentNick };
 
-  const change = (side: Side, delta: number) => {
-    setHistory(h => [...h, lp]);
-    setLp(current => ({ ...current, [side]: Math.max(0, current[side] + delta) }));
+  const open = (side: Side) => {
+    setEditing(side);
+    keypadRef.current?.present();
+  };
+
+  const apply = (value: number, label: string) => {
+    setHistory(h => [...h, { lp, last }]);
+    setLp(current => ({ ...current, [editing]: value }));
+    setLast(`@${nicks[editing]} ${label} → ${value}`);
   };
 
   const undo = () => {
     const previous = history[history.length - 1];
     if (!previous) return;
-    setLp(previous);
+    setLp(previous.lp);
+    setLast(previous.last);
     setHistory(h => h.slice(0, -1));
   };
 
   const reset = () => {
-    setHistory(h => [...h, lp]);
+    setHistory(h => [...h, { lp, last }]);
     setLp({ me: STARTING_LP, opponent: STARTING_LP });
+    setLast(null);
   };
 
-  const renderSide = (side: Side, nick: string) => (
-    <Panel zero={lp[side] === 0}>
-      <PanelNick numberOfLines={1}>@{nick}</PanelNick>
+  const renderSide = (side: Side) => (
+    <Panel zero={lp[side] === 0} onPress={() => open(side)} accessibilityLabel={`Alterar LP de ${nicks[side]}`}>
+      <PanelNick numberOfLines={1}>@{nicks[side]}</PanelNick>
       <LpValue zero={lp[side] === 0}>{lp[side]}</LpValue>
-      <Steps>
-        {STEPS.map(step => (
-          <StepChip key={step} negative={step < 0} onPress={() => change(side, step)}>
-            <StepText negative={step < 0}>{step > 0 ? `+${step}` : step}</StepText>
-          </StepChip>
-        ))}
-      </Steps>
+      <PanelHint>
+        <Icon name="calculator-variant-outline" size={14} color={colors.text.muted} />
+        <PanelHintText>Toque para alterar</PanelHintText>
+      </PanelHint>
     </Panel>
   );
 
   return (
     <Container>
-      {renderSide('opponent', opponentNick)}
-      {renderSide('me', myNick)}
+      {renderSide('opponent')}
+      {renderSide('me')}
+      {!!last && <LastChange numberOfLines={1}>Última: {last}</LastChange>}
       <Tools>
         <Tool onPress={undo} disabled={history.length === 0}>
           <Icon name="undo" size={20} color={colors.text.secondary} />
@@ -86,6 +97,7 @@ export function LifePoints({ myNick, opponentNick }: Props) {
           <ToolText>Dado</ToolText>
         </Tool>
       </Tools>
+      <LpKeypad ref={keypadRef} nick={nicks[editing]} current={lp[editing]} onApply={apply} />
     </Container>
   );
 }
