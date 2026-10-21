@@ -2,15 +2,15 @@ import styled from 'styled-components/native';
 import { colors } from '../../../../configs/colors';
 import { fontSize, radius, spacing } from '../../../../configs/theme';
 
-export const Card = styled.View`
+export const Card = styled.Pressable<{ champion?: boolean }>`
   flex-direction: row;
   align-items: center;
   gap: ${spacing.md}px;
   padding: ${spacing.md}px ${spacing.lg}px;
   border-radius: ${radius.md}px;
   border-width: 1px;
-  border-color: ${colors.border};
-  background-color: ${colors.surface};
+  border-color: ${({ champion }) => (champion ? colors.gold.dark : colors.border)};
+  background-color: ${({ champion }) => (champion ? colors.gold.soft : colors.surface)};
 `;
 
 export const Body = styled.View`

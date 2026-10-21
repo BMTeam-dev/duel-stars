@@ -28,6 +28,8 @@ export type UserProfile = {
   // Uma carteira por categoria (TCG, Master Duel, Duel Links).
   wallets: Record<Category, Wallet>;
   gameIds: GameIds;
+  // Medalhas conquistadas: id -> nível (1; ou 1/2/3 = bronze/prata/ouro).
+  medals: Record<string, number>;
   notificationsEnabled: boolean;
   // null = nunca trocou o nick (a primeira troca é livre, ver firestore.rules).
   nickChangedAt: number | null;

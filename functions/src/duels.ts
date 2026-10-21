@@ -12,6 +12,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { db, RULES } from './config';
 import { notifyUser } from './notify';
+import { evaluateMedals, notifyMedals, Unlocked } from './medals';
 
 // Tudo que mexe em estrelas acontece aqui, em transação, nunca no app (as
 // regras do Firestore proíbem o app de escrever estrelas). Fluxo completo no
@@ -38,7 +39,8 @@ function isCategory(value: unknown): value is Category {
 export const negate = (n: number) => (n === 0 ? 0 : -n);
 
 // Caminho de um campo da carteira, pra update com notação de ponto.
-const walletPath = (category: Category, field: string) => `wallets.${category}.${field}`;
+const walletPath = (category: Category, field: string) =>
+  `wallets.${category}.${field}`;
 type DuelStatus = 'active' | 'awaiting' | 'disputed' | 'done' | 'cancelled';
 
 const users = db.collection('users');
@@ -47,7 +49,8 @@ const challenges = db.collection('challenges');
 const feed = db.collection('feed');
 
 function requireAuth(uid: string | undefined): string {
-  if (!uid) throw new HttpsError('unauthenticated', 'Entre na sua conta para duelar.');
+  if (!uid)
+    throw new HttpsError('unauthenticated', 'Entre na sua conta para duelar.');
   return uid;
 }
 
@@ -67,12 +70,20 @@ const CODE_LENGTH = 6;
 
 function randomCode(): string {
   const bytes = randomBytes(CODE_LENGTH);
-  return Array.from(bytes, byte => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join('');
+  return Array.from(
+    bytes,
+    byte => CODE_ALPHABET[byte % CODE_ALPHABET.length],
+  ).join('');
 }
 
 async function openWithCode(code: string): Promise<string | null> {
-  const found = await challenges.where('code', '==', code).where('status', '==', 'open').get();
-  const valid = found.docs.find(doc => (doc.get('expiresAt') as Timestamp).toMillis() > Date.now());
+  const found = await challenges
+    .where('code', '==', code)
+    .where('status', '==', 'open')
+    .get();
+  const valid = found.docs.find(
+    doc => (doc.get('expiresAt') as Timestamp).toMillis() > Date.now(),
+  );
   return valid?.id ?? null;
 }
 
@@ -83,7 +94,8 @@ async function resolveToken(input: unknown): Promise<string> {
   // Desafio expirado continua 'open' no banco (ninguém fecha), então o
   // filtro de validade é aqui - senão um código antigo esconderia o novo.
   const found = await openWithCode(value.toUpperCase());
-  if (!found) throw new HttpsError('not-found', 'Nenhum desafio aberto com esse código.');
+  if (!found)
+    throw new HttpsError('not-found', 'Nenhum desafio aberto com esse código.');
   return found;
 }
 
@@ -91,21 +103,40 @@ function other(players: string[], uid: string): string {
   return players[0] === uid ? players[1] : players[0];
 }
 
-export const createChallenge = onCall<{ stake: number; format: Format; category: Category }>(async request => {
+export const createChallenge = onCall<{
+  stake: number;
+  format: Format;
+  category: Category;
+}>(async request => {
   const uid = requireAuth(request.auth?.uid);
   const { stake, format, category } = request.data ?? {};
-  if (!isCategory(category)) throw new HttpsError('invalid-argument', 'Categoria inválida.');
-  if (!Number.isInteger(stake) || stake < RULES.minStake || stake > RULES.maxStake) {
-    throw new HttpsError('invalid-argument', `A aposta vai de ${RULES.minStake} a ${RULES.maxStake} estrelas.`);
+  if (!isCategory(category))
+    throw new HttpsError('invalid-argument', 'Categoria inválida.');
+  if (
+    !Number.isInteger(stake) ||
+    stake < RULES.minStake ||
+    stake > RULES.maxStake
+  ) {
+    throw new HttpsError(
+      'invalid-argument',
+      `A aposta vai de ${RULES.minStake} a ${RULES.maxStake} estrelas.`,
+    );
   }
   if (format !== 'bo1' && format !== 'bo3') {
     throw new HttpsError('invalid-argument', 'Formato inválido.');
   }
 
   const user = await users.doc(uid).get();
-  if (!user.exists) throw new HttpsError('failed-precondition', 'Conclua seu cadastro antes de duelar.');
+  if (!user.exists)
+    throw new HttpsError(
+      'failed-precondition',
+      'Conclua seu cadastro antes de duelar.',
+    );
   if (available(user.data()!, category) < stake) {
-    throw new HttpsError('failed-precondition', 'Você não tem estrelas suficientes para essa aposta.');
+    throw new HttpsError(
+      'failed-precondition',
+      'Você não tem estrelas suficientes para essa aposta.',
+    );
   }
 
   // O token é o que vai no QR: aleatório e de vida curta, pra um print do QR
@@ -140,7 +171,8 @@ export const cancelChallenge = onCall<{ token: string }>(async request => {
     if (!snapshot.exists || snapshot.get('creatorUid') !== uid) {
       throw new HttpsError('not-found', 'Desafio não encontrado.');
     }
-    if (snapshot.get('status') === 'open') tx.update(ref, { status: 'cancelled' });
+    if (snapshot.get('status') === 'open')
+      tx.update(ref, { status: 'cancelled' });
   });
   return { ok: true };
 });
@@ -150,15 +182,32 @@ export const cancelChallenge = onCall<{ token: string }>(async request => {
 // o desafio de outra pessoa direto, então passa por aqui.
 export const previewChallenge = onCall<{ token: string }>(async request => {
   const uid = requireAuth(request.auth?.uid);
-  const snapshot = await challenges.doc(await resolveToken(request.data?.token)).get();
-  if (!snapshot.exists) throw new HttpsError('not-found', 'Desafio não encontrado. Confira o QR ou o código.');
+  const snapshot = await challenges
+    .doc(await resolveToken(request.data?.token))
+    .get();
+  if (!snapshot.exists)
+    throw new HttpsError(
+      'not-found',
+      'Desafio não encontrado. Confira o QR ou o código.',
+    );
   const { creatorUid, stake, format, status, expiresAt } = snapshot.data()!;
   const category: Category = snapshot.get('category') ?? 'tcg';
-  if (status !== 'open') throw new HttpsError('failed-precondition', 'Esse desafio já foi usado ou cancelado.');
+  if (status !== 'open')
+    throw new HttpsError(
+      'failed-precondition',
+      'Esse desafio já foi usado ou cancelado.',
+    );
   if ((expiresAt as Timestamp).toMillis() < Date.now()) {
-    throw new HttpsError('deadline-exceeded', 'Esse desafio expirou. Peça para gerar outro.');
+    throw new HttpsError(
+      'deadline-exceeded',
+      'Esse desafio expirou. Peça para gerar outro.',
+    );
   }
-  if (creatorUid === uid) throw new HttpsError('failed-precondition', 'Esse desafio é seu. Mande o código para o oponente.');
+  if (creatorUid === uid)
+    throw new HttpsError(
+      'failed-precondition',
+      'Esse desafio é seu. Mande o código para o oponente.',
+    );
   const [creator, rival] = await Promise.all([
     users.doc(creatorUid).get(),
     users.doc(uid).collection('rivals').doc(creatorUid).get(),
@@ -178,7 +227,10 @@ export const previewChallenge = onCall<{ token: string }>(async request => {
     category,
     expiresAt: (expiresAt as Timestamp).toMillis(),
     // Placar do ponto de vista de quem está aceitando.
-    headToHead: { wins: rival.get('wins') ?? 0, losses: rival.get('losses') ?? 0 },
+    headToHead: {
+      wins: rival.get('wins') ?? 0,
+      losses: rival.get('losses') ?? 0,
+    },
   };
 });
 
@@ -191,36 +243,71 @@ export const acceptChallenge = onCall<{ token: string }>(async request => {
   const result = await db.runTransaction(async tx => {
     const challengeRef = challenges.doc(token);
     const challenge = await tx.get(challengeRef);
-    if (!challenge.exists) throw new HttpsError('not-found', 'Desafio não encontrado. Confira o QR ou o código.');
+    if (!challenge.exists)
+      throw new HttpsError(
+        'not-found',
+        'Desafio não encontrado. Confira o QR ou o código.',
+      );
     const { creatorUid, stake, format, status, expiresAt } = challenge.data()!;
     const category: Category = challenge.get('category') ?? 'tcg';
-    if (status !== 'open') throw new HttpsError('failed-precondition', 'Esse desafio já foi usado ou cancelado.');
+    if (status !== 'open')
+      throw new HttpsError(
+        'failed-precondition',
+        'Esse desafio já foi usado ou cancelado.',
+      );
     if ((expiresAt as Timestamp).toMillis() < Date.now()) {
-      throw new HttpsError('deadline-exceeded', 'Esse desafio expirou. Peça para gerar outro.');
+      throw new HttpsError(
+        'deadline-exceeded',
+        'Esse desafio expirou. Peça para gerar outro.',
+      );
     }
-    if (creatorUid === uid) throw new HttpsError('failed-precondition', 'Você não pode aceitar o próprio desafio.');
+    if (creatorUid === uid)
+      throw new HttpsError(
+        'failed-precondition',
+        'Você não pode aceitar o próprio desafio.',
+      );
 
     const [creator, acceptor] = await Promise.all([
       tx.get(users.doc(creatorUid)),
       tx.get(users.doc(uid)),
     ]);
-    if (!acceptor.exists) throw new HttpsError('failed-precondition', 'Conclua seu cadastro antes de duelar.');
-    if (!creator.exists) throw new HttpsError('not-found', 'Quem criou o desafio não existe mais.');
+    if (!acceptor.exists)
+      throw new HttpsError(
+        'failed-precondition',
+        'Conclua seu cadastro antes de duelar.',
+      );
+    if (!creator.exists)
+      throw new HttpsError(
+        'not-found',
+        'Quem criou o desafio não existe mais.',
+      );
     if (available(acceptor.data()!, category) < stake) {
-      throw new HttpsError('failed-precondition', `Você precisa de ${stake} estrelas livres para aceitar.`);
+      throw new HttpsError(
+        'failed-precondition',
+        `Você precisa de ${stake} estrelas livres para aceitar.`,
+      );
     }
     if (available(creator.data()!, category) < stake) {
-      throw new HttpsError('failed-precondition', 'Quem te desafiou não tem mais estrelas para essa aposta.');
+      throw new HttpsError(
+        'failed-precondition',
+        'Quem te desafiou não tem mais estrelas para essa aposta.',
+      );
     }
 
     // Anti-farm: no máximo N duelos com aposta contra o mesmo jogador em 24h.
     const recent = await tx.get(
       duels
         .where('players', 'array-contains', uid)
-        .where('createdAt', '>=', Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000)),
+        .where(
+          'createdAt',
+          '>=',
+          Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000),
+        ),
     );
     const sameOpponent = recent.docs.filter(
-      doc => (doc.get('players') as string[]).includes(creatorUid) && doc.get('status') !== 'cancelled',
+      doc =>
+        (doc.get('players') as string[]).includes(creatorUid) &&
+        doc.get('status') !== 'cancelled',
     ).length;
     if (sameOpponent >= RULES.maxDuelsPerOpponentPerDay) {
       throw new HttpsError(
@@ -229,7 +316,9 @@ export const acceptChallenge = onCall<{ token: string }>(async request => {
       );
     }
 
-    const cityIds = Array.from(new Set([creator.get('cityId'), acceptor.get('cityId')]));
+    const cityIds = Array.from(
+      new Set([creator.get('cityId'), acceptor.get('cityId')]),
+    );
     tx.set(duelRef, {
       players: [creatorUid, uid],
       stake,
@@ -241,8 +330,12 @@ export const acceptChallenge = onCall<{ token: string }>(async request => {
       createdAt: FieldValue.serverTimestamp(),
     });
     tx.update(challengeRef, { status: 'used', duelId: duelRef.id });
-    tx.update(users.doc(creatorUid), { [walletPath(category, 'lockedStars')]: FieldValue.increment(stake) });
-    tx.update(users.doc(uid), { [walletPath(category, 'lockedStars')]: FieldValue.increment(stake) });
+    tx.update(users.doc(creatorUid), {
+      [walletPath(category, 'lockedStars')]: FieldValue.increment(stake),
+    });
+    tx.update(users.doc(uid), {
+      [walletPath(category, 'lockedStars')]: FieldValue.increment(stake),
+    });
     return { creatorUid, acceptorNick: acceptor.get('nick') as string };
   });
 
@@ -278,7 +371,30 @@ export function applyFinalize(
   const loserUid = other(players, winnerUid);
   const stake = duel.stake as number;
   const category: Category = duel.category ?? 'tcg';
-  const winner = players[0] === winnerUid ? reads.userA : reads.userB;
+  const winnerIsA = players[0] === winnerUid;
+  const winner = winnerIsA ? reads.userA : reads.userB;
+  const loser = winnerIsA ? reads.userB : reads.userA;
+  const casual = !duel.tournamentId;
+  const medals = {
+    winner: evaluateMedals({
+      user: winner,
+      opponent: loser,
+      rival: winnerIsA ? reads.rivalAB : reads.rivalBA,
+      category,
+      won: true,
+      stake,
+      casual,
+    }),
+    loser: evaluateMedals({
+      user: loser,
+      opponent: winner,
+      rival: winnerIsA ? reads.rivalBA : reads.rivalAB,
+      category,
+      won: false,
+      stake,
+      casual,
+    }),
+  };
   const winnerWallet = wallet(winner.data() ?? {}, category);
   const now = FieldValue.serverTimestamp();
   const path = (field: string) => walletPath(category, field);
@@ -292,6 +408,7 @@ export function applyFinalize(
     [path('bestStreak')]: Math.max(streak, winnerWallet.bestStreak ?? 0),
     // Entra no ranking da categoria a partir do primeiro duelo encerrado.
     [path('ranked')]: true,
+    ...medals.winner.fields,
   });
   tx.update(users.doc(loserUid), {
     [path('stars')]: FieldValue.increment(negate(stake)),
@@ -299,25 +416,43 @@ export function applyFinalize(
     [path('losses')]: FieldValue.increment(1),
     [path('streak')]: 0,
     [path('ranked')]: true,
+    ...medals.loser.fields,
   });
 
   // Placar entre os dois - base de "Meu Freguês" / "Minha Nêmesis".
   tx.set(
     users.doc(winnerUid).collection('rivals').doc(loserUid),
-    { wins: FieldValue.increment(1), lastDuelAt: now, lastWinnerUid: winnerUid },
+    {
+      wins: FieldValue.increment(1),
+      lastDuelAt: now,
+      lastWinnerUid: winnerUid,
+    },
     { merge: true },
   );
   tx.set(
     users.doc(loserUid).collection('rivals').doc(winnerUid),
-    { losses: FieldValue.increment(1), lastDuelAt: now, lastWinnerUid: winnerUid },
+    {
+      losses: FieldValue.increment(1),
+      lastDuelAt: now,
+      lastWinnerUid: winnerUid,
+    },
     { merge: true },
   );
 
-  tx.update(duelRef, { status: 'done' as DuelStatus, winnerUid, loserUid, endedAt: now });
+  tx.update(duelRef, {
+    status: 'done' as DuelStatus,
+    winnerUid,
+    loserUid,
+    endedAt: now,
+  });
 
   // Partida de torneio não vale estrelas: não vira post (o campeão vai pro
   // feed quando o torneio acaba).
-  if (duel.tournamentId) return { loserUid, stake };
+  const unlocked = {
+    [winnerUid]: medals.winner.unlocked,
+    [loserUid]: medals.loser.unlocked,
+  };
+  if (duel.tournamentId) return { loserUid, stake, unlocked };
 
   // Feed guarda só uids: o app mostra sempre o nick atual de cada um.
   tx.set(feed.doc(), {
@@ -331,19 +466,45 @@ export function applyFinalize(
     cityIds: duel.cityIds ?? [],
     createdAt: now,
   });
-  return { loserUid, stake };
+  return { loserUid, stake, unlocked };
 }
 
-export function applyCancel(tx: Transaction, duelRef: DocumentReference, duel: DocumentData) {
+export async function notifyAllMedals(
+  unlocked: Record<string, Unlocked[]> | undefined,
+) {
+  await Promise.all(
+    Object.entries(unlocked ?? {}).map(([uid, list]) =>
+      notifyMedals(uid, list),
+    ),
+  );
+}
+
+export function applyCancel(
+  tx: Transaction,
+  duelRef: DocumentReference,
+  duel: DocumentData,
+) {
   const stake = duel.stake as number;
   const category: Category = duel.category ?? 'tcg';
   for (const uid of duel.players as string[]) {
-    tx.update(users.doc(uid), { [walletPath(category, 'lockedStars')]: FieldValue.increment(negate(stake)) });
+    tx.update(users.doc(uid), {
+      [walletPath(category, 'lockedStars')]: FieldValue.increment(
+        negate(stake),
+      ),
+    });
   }
-  tx.update(duelRef, { status: 'cancelled' as DuelStatus, endedAt: FieldValue.serverTimestamp() });
+  tx.update(duelRef, {
+    status: 'cancelled' as DuelStatus,
+    endedAt: FieldValue.serverTimestamp(),
+  });
 }
 
-async function notifyDone(winnerUid: string, loserUid: string, stake: number, duelId: string) {
+async function notifyDone(
+  winnerUid: string,
+  loserUid: string,
+  stake: number,
+  duelId: string,
+) {
   // Partida de torneio (aposta 0): quem avisa é o torneio, com a próxima rodada.
   if (stake === 0) return;
   await Promise.all([
@@ -360,80 +521,104 @@ async function notifyDone(winnerUid: string, loserUid: string, stake: number, du
   ]);
 }
 
-export const reportResult = onCall<{ duelId: string; winnerUid: string }>(async request => {
-  const uid = requireAuth(request.auth?.uid);
-  const duelRef = duels.doc(String(request.data?.duelId ?? ''));
-  const winnerUid = String(request.data?.winnerUid ?? '');
+export const reportResult = onCall<{ duelId: string; winnerUid: string }>(
+  async request => {
+    const uid = requireAuth(request.auth?.uid);
+    const duelRef = duels.doc(String(request.data?.duelId ?? ''));
+    const winnerUid = String(request.data?.winnerUid ?? '');
 
-  const outcome = await db.runTransaction(async tx => {
-    const snapshot = await tx.get(duelRef);
-    if (!snapshot.exists) throw new HttpsError('not-found', 'Duelo não encontrado.');
-    const duel = snapshot.data()!;
-    const players = duel.players as string[];
-    if (!players.includes(uid)) throw new HttpsError('permission-denied', 'Esse duelo não é seu.');
-    if (!players.includes(winnerUid)) throw new HttpsError('invalid-argument', 'Vencedor inválido.');
-    if (duel.status !== 'active' && duel.status !== 'awaiting' && duel.status !== 'disputed') {
-      throw new HttpsError('failed-precondition', 'Esse duelo já foi encerrado.');
-    }
+    const outcome = await db.runTransaction(async tx => {
+      const snapshot = await tx.get(duelRef);
+      if (!snapshot.exists)
+        throw new HttpsError('not-found', 'Duelo não encontrado.');
+      const duel = snapshot.data()!;
+      const players = duel.players as string[];
+      if (!players.includes(uid))
+        throw new HttpsError('permission-denied', 'Esse duelo não é seu.');
+      if (!players.includes(winnerUid))
+        throw new HttpsError('invalid-argument', 'Vencedor inválido.');
+      if (
+        duel.status !== 'active' &&
+        duel.status !== 'awaiting' &&
+        duel.status !== 'disputed'
+      ) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Esse duelo já foi encerrado.',
+        );
+      }
 
-    const reads = await readFinalizeData(tx, players);
-    const opponent = other(players, uid);
-    const opponentReport: string | undefined = duel.reports?.[opponent];
+      const reads = await readFinalizeData(tx, players);
+      const opponent = other(players, uid);
+      const opponentReport: string | undefined = duel.reports?.[opponent];
 
-    // Em disputa, só muda alguma coisa quem corrige o próprio informe pra
-    // concordar com o do oponente - aí o duelo fecha. Repetir a mesma
-    // versão não reinicia o prazo de 48h nem conta outra disputa.
-    if (duel.status === 'disputed' && opponentReport !== winnerUid) {
-      return { kind: 'unchanged' as const };
-    }
+      // Em disputa, só muda alguma coisa quem corrige o próprio informe pra
+      // concordar com o do oponente - aí o duelo fecha. Repetir a mesma
+      // versão não reinicia o prazo de 48h nem conta outra disputa.
+      if (duel.status === 'disputed' && opponentReport !== winnerUid) {
+        return { kind: 'unchanged' as const };
+      }
 
-    if (!opponentReport) {
+      if (!opponentReport) {
+        tx.update(duelRef, {
+          [`reports.${uid}`]: winnerUid,
+          status: 'awaiting' as DuelStatus,
+          firstReportAt: FieldValue.serverTimestamp(),
+        });
+        return { kind: 'awaiting' as const, opponent };
+      }
+      if (opponentReport === winnerUid) {
+        tx.update(duelRef, { [`reports.${uid}`]: winnerUid });
+        const { loserUid, stake, unlocked } = applyFinalize(
+          tx,
+          duelRef,
+          duel,
+          winnerUid,
+          reads,
+        );
+        return { kind: 'done' as const, winnerUid, loserUid, stake, unlocked };
+      }
+      // Discordaram: estrelas continuam travadas e nada vai pro feed.
       tx.update(duelRef, {
         [`reports.${uid}`]: winnerUid,
-        status: 'awaiting' as DuelStatus,
-        firstReportAt: FieldValue.serverTimestamp(),
+        status: 'disputed' as DuelStatus,
+        disputedAt: FieldValue.serverTimestamp(),
       });
-      return { kind: 'awaiting' as const, opponent };
-    }
-    if (opponentReport === winnerUid) {
-      tx.update(duelRef, { [`reports.${uid}`]: winnerUid });
-      const { loserUid, stake } = applyFinalize(tx, duelRef, duel, winnerUid, reads);
-      return { kind: 'done' as const, winnerUid, loserUid, stake };
-    }
-    // Discordaram: estrelas continuam travadas e nada vai pro feed.
-    tx.update(duelRef, {
-      [`reports.${uid}`]: winnerUid,
-      status: 'disputed' as DuelStatus,
-      disputedAt: FieldValue.serverTimestamp(),
+      for (const player of players) {
+        tx.update(users.doc(player), { disputeCount: FieldValue.increment(1) });
+      }
+      return { kind: 'disputed' as const, players };
     });
-    for (const player of players) {
-      tx.update(users.doc(player), { disputeCount: FieldValue.increment(1) });
-    }
-    return { kind: 'disputed' as const, players };
-  });
 
-  if (outcome.kind === 'awaiting') {
-    const nick = (await users.doc(uid).get()).get('nick');
-    await notifyUser(outcome.opponent, {
-      title: 'Confirme o resultado',
-      body: `@${nick} informou o resultado do duelo. Confirme em até 24 horas.`,
-      link: `/duel/${duelRef.id}`,
-    });
-  } else if (outcome.kind === 'done') {
-    await notifyDone(outcome.winnerUid, outcome.loserUid, outcome.stake, duelRef.id);
-  } else if (outcome.kind === 'disputed') {
-    await Promise.all(
-      outcome.players.map(player =>
-        notifyUser(player, {
-          title: 'Resultado em disputa',
-          body: 'Vocês informaram vencedores diferentes. As estrelas ficam travadas por até 48 horas.',
-          link: `/duel/${duelRef.id}`,
-        }),
-      ),
-    );
-  }
-  return { status: outcome.kind === 'unchanged' ? 'disputed' : outcome.kind };
-});
+    if (outcome.kind === 'awaiting') {
+      const nick = (await users.doc(uid).get()).get('nick');
+      await notifyUser(outcome.opponent, {
+        title: 'Confirme o resultado',
+        body: `@${nick} informou o resultado do duelo. Confirme em até 24 horas.`,
+        link: `/duel/${duelRef.id}`,
+      });
+    } else if (outcome.kind === 'done') {
+      await notifyDone(
+        outcome.winnerUid,
+        outcome.loserUid,
+        outcome.stake,
+        duelRef.id,
+      );
+      await notifyAllMedals(outcome.unlocked);
+    } else if (outcome.kind === 'disputed') {
+      await Promise.all(
+        outcome.players.map(player =>
+          notifyUser(player, {
+            title: 'Resultado em disputa',
+            body: 'Vocês informaram vencedores diferentes. As estrelas ficam travadas por até 48 horas.',
+            link: `/duel/${duelRef.id}`,
+          }),
+        ),
+      );
+    }
+    return { status: outcome.kind === 'unchanged' ? 'disputed' : outcome.kind };
+  },
+);
 
 // Prazos do duelo (doc do MVP, "Regras das estrelas"): sem confirmação em
 // 24h vale o resultado informado; disputa ou duelo abandonado por 48h é
@@ -445,15 +630,27 @@ export const expireDuels = onSchedule(
     const [awaiting, disputed, abandoned] = await Promise.all([
       duels
         .where('status', '==', 'awaiting')
-        .where('firstReportAt', '<=', Timestamp.fromMillis(now - RULES.confirmWindowMs))
+        .where(
+          'firstReportAt',
+          '<=',
+          Timestamp.fromMillis(now - RULES.confirmWindowMs),
+        )
         .get(),
       duels
         .where('status', '==', 'disputed')
-        .where('disputedAt', '<=', Timestamp.fromMillis(now - RULES.disputeWindowMs))
+        .where(
+          'disputedAt',
+          '<=',
+          Timestamp.fromMillis(now - RULES.disputeWindowMs),
+        )
         .get(),
       duels
         .where('status', '==', 'active')
-        .where('createdAt', '<=', Timestamp.fromMillis(now - RULES.abandonedWindowMs))
+        .where(
+          'createdAt',
+          '<=',
+          Timestamp.fromMillis(now - RULES.abandonedWindowMs),
+        )
         .get(),
     ]);
     // Partida de torneio segue o prazo da rodada (deadlineAt) ou, sem prazo,
@@ -472,11 +669,20 @@ export const expireDuels = onSchedule(
           if (duel.status !== 'awaiting') return null;
           const winnerUid = Object.values(duel.reports ?? {})[0] as string;
           const reads = await readFinalizeData(tx, duel.players);
-          return { winnerUid, ...applyFinalize(tx, doc.ref, duel, winnerUid, reads) };
+          return {
+            winnerUid,
+            ...applyFinalize(tx, doc.ref, duel, winnerUid, reads),
+          };
         });
-        if (done) await notifyDone(done.winnerUid, done.loserUid, done.stake, doc.id);
+        if (done) {
+          await notifyDone(done.winnerUid, done.loserUid, done.stake, doc.id);
+          await notifyAllMedals(done.unlocked);
+        }
       } catch (error) {
-        logger.error('expireDuels: falha ao confirmar por prazo', { duelId: doc.id, error });
+        logger.error('expireDuels: falha ao confirmar por prazo', {
+          duelId: doc.id,
+          error,
+        });
       }
     }
 
@@ -494,19 +700,30 @@ export const expireDuels = onSchedule(
     // Fim do prazo da rodada: com um informe, vale ele; sem, derrota dupla.
     for (const doc of overdue.docs) {
       try {
-        await db.runTransaction(async tx => {
+        const unlocked = await db.runTransaction(async tx => {
           const snapshot = await tx.get(doc.ref);
           const duel = snapshot.data()!;
-          if (!['active', 'awaiting', 'disputed'].includes(duel.status)) return;
+          if (!['active', 'awaiting', 'disputed'].includes(duel.status))
+            return undefined;
           if (duel.status === 'awaiting') {
             const reads = await readFinalizeData(tx, duel.players);
-            applyFinalize(tx, doc.ref, duel, Object.values(duel.reports ?? {})[0] as string, reads);
-          } else {
-            applyCancel(tx, doc.ref, duel);
+            return applyFinalize(
+              tx,
+              doc.ref,
+              duel,
+              Object.values(duel.reports ?? {})[0] as string,
+              reads,
+            ).unlocked;
           }
+          applyCancel(tx, doc.ref, duel);
+          return undefined;
         });
+        await notifyAllMedals(unlocked);
       } catch (error) {
-        logger.error('expireDuels: falha no prazo do torneio', { duelId: doc.id, error });
+        logger.error('expireDuels: falha no prazo do torneio', {
+          duelId: doc.id,
+          error,
+        });
       }
     }
 
@@ -519,7 +736,10 @@ export const expireDuels = onSchedule(
           applyCancel(tx, doc.ref, duel);
         });
       } catch (error) {
-        logger.error('expireDuels: falha ao cancelar', { duelId: doc.id, error });
+        logger.error('expireDuels: falha ao cancelar', {
+          duelId: doc.id,
+          error,
+        });
       }
     }
   },
@@ -533,9 +753,13 @@ export const weeklyRefill = onSchedule(
     const batch = db.batch();
     let refilled = 0;
     for (const category of CATEGORIES) {
-      const low = await users.where(walletPath(category, 'stars'), '<', 3).get();
+      const low = await users
+        .where(walletPath(category, 'stars'), '<', 3)
+        .get();
       low.docs
-        .filter(doc => (doc.get(walletPath(category, 'lockedStars')) ?? 0) === 0)
+        .filter(
+          doc => (doc.get(walletPath(category, 'lockedStars')) ?? 0) === 0,
+        )
         .forEach(doc => {
           batch.update(doc.ref, { [walletPath(category, 'stars')]: 10 });
           refilled += 1;

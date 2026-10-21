@@ -50,7 +50,8 @@ function FeedScreen({ navigation }: FeedProps) {
 
   const openDuel = myDuels.find(duel => OPEN_STATUSES.includes(duel.status));
   const playerUids = useMemo(
-    () => (posts ?? []).flatMap(post => [post.winnerUid, post.loserUid]),
+    () =>
+      (posts ?? []).flatMap(post => [post.winnerUid, ...(post.loserUid ? [post.loserUid] : [])]),
     [posts],
   );
   const profiles = usePublicProfiles(playerUids);
@@ -95,7 +96,8 @@ function FeedScreen({ navigation }: FeedProps) {
                 post={item}
                 myUid={profile?.uid ?? ''}
                 winner={profiles[item.winnerUid]}
-                loser={profiles[item.loserUid]}
+                loser={item.loserUid ? profiles[item.loserUid] : undefined}
+                onOpenTournament={id => navigation.navigate('Tournament', { tournamentId: id })}
               />
             )}
             ListEmptyComponent={

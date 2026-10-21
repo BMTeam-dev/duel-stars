@@ -8,10 +8,15 @@ import {
 } from 'firebase-admin/firestore';
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { logger } from 'firebase-functions/v2';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { db } from './config';
-import { applyCancel, applyFinalize, negate, readFinalizeData } from './duels';
+import {
+  applyCancel,
+  applyFinalize,
+  negate,
+  notifyAllMedals,
+  readFinalizeData,
+} from './duels';
 import { notifyUser } from './notify';
 
 // Torneios: criação, inscrição, check-in e mata-mata (o suíço vem depois). Regras
@@ -1077,6 +1082,7 @@ function payout(
         negate(locked),
       ),
       [walletPath(t.category, 'stars')]: FieldValue.increment(change),
+      ...(p.id === champion ? { 'medals.champion': 1 } : {}),
     });
   }
   tx.update(tRef, {
@@ -1125,12 +1131,32 @@ async function notifyFinished(
   champion: string,
 ) {
   const players = (await tRef.collection('players').get()).docs.map(d => d.id);
-  const nick = (await users.doc(champion).get()).get('nick') ?? '...';
+  const championDoc = await users.doc(champion).get();
+  // O `t` recebido é de antes da premiação: o bolo vem do documento atual.
+  const pot = (await tRef.get()).get('pot') ?? 0;
+  const nick = championDoc.get('nick') ?? '...';
+  // Post do campeão no Feed (fora da transação: precisa da cidade dele, e
+  // um post a menos não estraga nada). Na cidade do campeão e no Geral.
+  await db.collection('feed').add({
+    type: 'tournament',
+    tournamentId: tRef.id,
+    tournamentName: t.name,
+    format: t.format,
+    winnerUid: champion,
+    playerCount: t.playerCount ?? players.length,
+    stars: pot,
+    category: t.category,
+    cityIds: championDoc.get('cityId') ? [championDoc.get('cityId')] : [],
+    createdAt: FieldValue.serverTimestamp(),
+  });
   await Promise.all(
     players.map(uid =>
       notifyUser(uid, {
         title: `${t.name} terminou`,
-        body: uid === champion ? 'Você é o campeão!' : `@${nick} é o campeão.`,
+        body:
+          uid === champion
+            ? 'Você é o campeão! Medalha Campeão conquistada.'
+            : `@${nick} é o campeão.`,
         link: `/tournament/${tRef.id}`,
       }),
     ),
@@ -1175,7 +1201,7 @@ export const resolveTournamentMatch = onCall(async request => {
     ? String(request.data.winnerUid)
     : null;
 
-  await db.runTransaction(async tx => {
+  const unlocked = await db.runTransaction(async tx => {
     const t = (await tx.get(tRef)).data();
     if (!t) throw new HttpsError('not-found', 'Torneio não encontrado.');
     if (t.organizerUid !== uid)
@@ -1202,11 +1228,12 @@ export const resolveTournamentMatch = onCall(async request => {
       if (!(match.players as string[]).includes(winnerUid))
         throw new HttpsError('invalid-argument', 'Jogador inválido.');
       const reads = await readFinalizeData(tx, duel.players);
-      applyFinalize(tx, duelRef, duel, winnerUid, reads);
-    } else {
-      applyCancel(tx, duelRef, duel);
+      return applyFinalize(tx, duelRef, duel, winnerUid, reads).unlocked;
     }
+    applyCancel(tx, duelRef, duel);
+    return undefined;
   });
+  await notifyAllMedals(unlocked);
   return { ok: true };
 });
 

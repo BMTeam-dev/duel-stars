@@ -242,7 +242,7 @@ function ProfileScreen({ navigation }: ProfileProps) {
         )}
 
         <SectionTitle>Medalhas</SectionTitle>
-        <MedalsRow unlocked={[]} />
+        <MedalsRow medals={profile.medals} />
 
         <Button
           label="Sair da conta"

@@ -174,6 +174,7 @@ function toProfile(uid: string, data: DocumentData): UserProfile {
     nick: data.nick,
     photoUrl: data.photoUrl ?? null,
     gameIds: data.gameIds ?? {},
+    medals: data.medals ?? {},
     cityId: data.cityId,
     cityName: data.cityName,
     stateId: data.stateId,

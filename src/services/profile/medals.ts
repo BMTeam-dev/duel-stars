@@ -1,14 +1,18 @@
 import type { IconName } from '../../shared/ui/Icon';
 
-// Catálogo das medalhas do MVP (ver "Medalhas, conquistas e histórico" no doc
-// do MVP). Quem desbloqueia é o servidor depois de cada duelo (Cloud
-// Functions, fase 2); o app só mostra o catálogo e quais o jogador já tem.
+// Catálogo das medalhas (ver "Medalhas, conquistas e histórico" no doc do
+// MVP). Quem desbloqueia é o backend, no fim de cada duelo
+// (functions/src/medals.ts); o app só mostra o catálogo e o que já foi ganho.
+// `tiered`: bronze, prata e ouro (o nível vem em profile.medals[id]).
 export type Medal = {
   id: string;
   name: string;
   howTo: string;
   icon: IconName;
+  tiered?: boolean;
 };
+
+export const TIER_NAMES = ['', 'Bronze', 'Prata', 'Ouro'];
 
 export const MEDALS: Medal[] = [
   { id: 'first_duel', name: 'Primeiro Duelo', howTo: 'Conclua seu primeiro duelo.', icon: 'cards-playing' },
@@ -18,12 +22,14 @@ export const MEDALS: Medal[] = [
     name: 'Duelista',
     howTo: 'Conclua 10, 50 e 100 duelos (bronze, prata e ouro).',
     icon: 'sword-cross',
+    tiered: true,
   },
   {
     id: 'on_fire',
     name: 'Em Chamas',
     howTo: 'Vença 3, 5 e 10 duelos seguidos (bronze, prata e ouro).',
     icon: 'fire',
+    tiered: true,
   },
   {
     id: 'underdog',
@@ -47,6 +53,7 @@ export const MEDALS: Medal[] = [
     howTo: 'Volte a 20 estrelas depois de cair abaixo de 3.',
     icon: 'bird',
   },
+  { id: 'champion', name: 'Campeão', howTo: 'Vença um torneio.', icon: 'trophy-award' },
   {
     id: 'top10',
     name: 'Top 10',

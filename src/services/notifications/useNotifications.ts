@@ -18,27 +18,37 @@ import { db } from '../firestore/db';
 
 const messaging = getMessaging();
 
-type Route = { screen: 'Duel'; params: { duelId: string } } | { screen: 'Tournament'; params: { tournamentId: string } };
+type Route =
+  | { screen: 'Duel'; params: { duelId: string } }
+  | { screen: 'Tournament'; params: { tournamentId: string } }
+  | { screen: 'Profile' };
 
-// Rotas que o backend manda em data.link (functions/src/duels.ts e tournaments.ts).
+// Rotas que o backend manda em data.link (functions/src: duels, tournaments, medals).
 function routeFromLink(link: unknown): Route | null {
   if (typeof link !== 'string') return null;
+  if (link === '/profile') return { screen: 'Profile' };
   const duel = /^\/duel\/([A-Za-z0-9]+)$/.exec(link);
   if (duel) return { screen: 'Duel', params: { duelId: duel[1] } };
   const tournament = /^\/tournament\/([A-Za-z0-9]+)$/.exec(link);
-  return tournament ? { screen: 'Tournament', params: { tournamentId: tournament[1] } } : null;
+  return tournament
+    ? { screen: 'Tournament', params: { tournamentId: tournament[1] } }
+    : null;
 }
 
 function go(navigationRef: NavigationContainerRef<ScreensTypes>, route: Route) {
   if (route.screen === 'Duel') navigationRef.navigate('Duel', route.params);
-  else navigationRef.navigate('Tournament', route.params);
+  else if (route.screen === 'Tournament')
+    navigationRef.navigate('Tournament', route.params);
+  else navigationRef.navigate('MainTabs', { screen: 'Profile' });
 }
 
 // Liga as notificações ao app: tocar numa notificação abre o duelo; com o
 // app aberto, a notificação vira um toast (o sistema não mostra push com o
 // app em primeiro plano); e mantém o token do aparelho salvo no perfil, já
 // que o FCM troca o token de tempos em tempos.
-export function useNotifications(navigationRef: NavigationContainerRef<ScreensTypes>): void {
+export function useNotifications(
+  navigationRef: NavigationContainerRef<ScreensTypes>,
+): void {
   const profile = useAppSelector(state => state.profile.profile);
   const ready = !!profile;
   const uid = profile?.uid;
@@ -53,11 +63,17 @@ export function useNotifications(navigationRef: NavigationContainerRef<ScreensTy
       if (navigationRef.isReady() && ready) go(navigationRef, route);
       else pendingRef.current = route;
     };
-    getInitialNotification(messaging).then(message => open(message?.data?.link));
-    const unsubscribeOpened = onNotificationOpenedApp(messaging, message => open(message.data?.link));
+    getInitialNotification(messaging).then(message =>
+      open(message?.data?.link),
+    );
+    const unsubscribeOpened = onNotificationOpenedApp(messaging, message =>
+      open(message.data?.link),
+    );
     const unsubscribeForeground = onMessage(messaging, message => {
       if (message.notification?.title) {
-        toast(message.notification.title, { description: message.notification.body });
+        toast(message.notification.title, {
+          description: message.notification.body,
+        });
       }
     });
     return () => {
@@ -76,10 +92,17 @@ export function useNotifications(navigationRef: NavigationContainerRef<ScreensTy
   useEffect(() => {
     if (!uid || !enabled) return;
     const save = (token: string) =>
-      updateDoc(doc(db, 'users', uid), { fcmTokens: arrayUnion(token) }).catch(() => undefined);
+      updateDoc(doc(db, 'users', uid), { fcmTokens: arrayUnion(token) }).catch(
+        () => undefined,
+      );
     hasPermission(messaging).then(status => {
-      if (status === AuthorizationStatus.AUTHORIZED || status === AuthorizationStatus.PROVISIONAL) {
-        getToken(messaging).then(save).catch(() => undefined);
+      if (
+        status === AuthorizationStatus.AUTHORIZED ||
+        status === AuthorizationStatus.PROVISIONAL
+      ) {
+        getToken(messaging)
+          .then(save)
+          .catch(() => undefined);
       }
     });
     return onTokenRefresh(messaging, save);

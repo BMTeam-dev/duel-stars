@@ -7,14 +7,14 @@ export const Item = styled.Pressable`
   align-items: center;
 `;
 
-export const Circle = styled.View<{ owned: boolean }>`
+export const Circle = styled.View<{ owned: boolean; color: string }>`
   width: 64px;
   height: 64px;
   border-radius: 32px;
   align-items: center;
   justify-content: center;
   border-width: 2px;
-  border-color: ${({ owned }) => (owned ? colors.gold.main : colors.border)};
+  border-color: ${({ owned, color }) => (owned ? color : colors.border)};
   background-color: ${({ owned }) => (owned ? colors.gold.soft : colors.surface)};
 `;
 
@@ -37,4 +37,10 @@ export const Name = styled.Text<{ owned: boolean }>`
   font-size: ${fontSize.caption}px;
   text-align: center;
   margin-top: ${spacing.sm}px;
+`;
+
+export const TierText = styled.Text<{ color: string }>`
+  color: ${({ color }) => color};
+  font-size: ${fontSize.caption}px;
+  font-weight: 800;
 `;
