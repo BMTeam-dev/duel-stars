@@ -12,6 +12,7 @@ import { levelProgress, levelTitle } from '../../../../services/profile/level';
 import { totalRecord } from '../../../../services/profile/profile.service';
 import { useActiveCategory } from '../../../../services/profile/useActiveCategory';
 import { CATEGORIES, CATEGORY_ICON, CATEGORY_LABEL, Duel } from '../../../../services/duels/duels.types';
+import { useDuelNotes } from '../../../../services/duels/duelNotes.service';
 import { subscribeDuelHistory } from '../../../../services/duels/duels.service';
 import { crashReportingService } from '../../../../services/crashReporting/crashReporting.service';
 import { usePublicProfiles } from '../../../../services/profile/usePublicProfiles';
@@ -93,6 +94,8 @@ function ProfileScreen({ navigation }: ProfileProps) {
     [recentDuels, fregues, nemesis, uid],
   );
   const profiles = usePublicProfiles(opponentUids);
+  const recentIds = useMemo(() => recentDuels.map(duel => duel.id), [recentDuels]);
+  const notes = useDuelNotes(uid, recentIds);
 
   if (!profile) return null;
 
@@ -218,6 +221,7 @@ function ProfileScreen({ navigation }: ProfileProps) {
                 duel={duel}
                 myUid={profile.uid}
                 opponent={profiles[duel.players.find(p => p !== profile.uid) ?? '']}
+                note={notes[duel.id]}
                 onPress={() => navigation.navigate('Duel', { duelId: duel.id })}
               />
             ))}

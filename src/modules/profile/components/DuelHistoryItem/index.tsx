@@ -10,12 +10,14 @@ import {
 import { timeAgo } from '../../../../shared/timeAgo';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Icon } from '../../../../shared/ui/Icon';
-import { Body, Card, Meta, Result, ResultText, Stars, StarsText, Title } from './styles';
+import { Body, Card, Meta, NoteRow, NoteText, Result, ResultText, Stars, StarsText, Title } from './styles';
 
 type Props = {
   duel: Duel;
   myUid: string;
   opponent: PublicProfile | undefined;
+  // Anotação privada do jogador sobre esse duelo (deck etc.), se tiver.
+  note?: string;
   onPress: () => void;
 };
 
@@ -31,7 +33,7 @@ function outcomeOf(duel: Duel, myUid: string): Outcome {
 
 const RESULT_LABEL: Record<Outcome, string> = { won: 'V', lost: 'D', open: '…', cancelled: '–' };
 
-export function DuelHistoryItem({ duel, myUid, opponent, onPress }: Props) {
+export function DuelHistoryItem({ duel, myUid, opponent, note, onPress }: Props) {
   const outcome = outcomeOf(duel, myUid);
   const status =
     outcome === 'open'
@@ -53,6 +55,12 @@ export function DuelHistoryItem({ duel, myUid, opponent, onPress }: Props) {
           {CATEGORY_LABEL[duel.category]} · {FORMAT_LABEL[duel.format]}
           {status ? ` · ${status}` : duel.createdAt ? ` · ${timeAgo(duel.createdAt)}` : ''}
         </Meta>
+        {!!note && (
+          <NoteRow>
+            <Icon name="note-text-outline" size={12} color={colors.text.secondary} />
+            <NoteText numberOfLines={2}>{note}</NoteText>
+          </NoteRow>
+        )}
       </Body>
       <Stars outcome={outcome}>
         <Icon

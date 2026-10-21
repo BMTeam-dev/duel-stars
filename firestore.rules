@@ -68,6 +68,19 @@ service cloud.firestore {
       allow read: if signedIn();
     }
 
+    // Anotação privada de um duelo ("que deck foi usado?"): só o dono lê e
+    // escreve, e só em duelo em que ele jogou.
+    match /users/{uid}/duelNotes/{duelId} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['text', 'updatedAt'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 280
+        && request.resource.data.updatedAt == request.time
+        && uid in get(/databases/$(database)/documents/duels/$(duelId)).data.players;
+    }
+
     // Desafios (QR), duelos e feed são escritos só pelas Cloud Functions
     // (functions/src/duels.ts); o app apenas lê.
     match /challenges/{token} {

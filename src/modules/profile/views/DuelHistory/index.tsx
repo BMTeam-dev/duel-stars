@@ -7,6 +7,7 @@ import { DuelHistoryProps } from '../../../../navigation/props';
 import { useAppSelector } from '../../../../redux/store';
 import { crashReportingService } from '../../../../services/crashReporting/crashReporting.service';
 import { subscribeDuelHistory } from '../../../../services/duels/duels.service';
+import { useDuelNotes } from '../../../../services/duels/duelNotes.service';
 import { Duel } from '../../../../services/duels/duels.types';
 import { usePublicProfiles } from '../../../../services/profile/usePublicProfiles';
 import { EmptyState } from '../../../../shared/ui/EmptyState';
@@ -33,6 +34,8 @@ function DuelHistoryScreen({ navigation }: DuelHistoryProps) {
     [duels, uid],
   );
   const profiles = usePublicProfiles(opponentUids);
+  const duelIds = useMemo(() => (duels ?? []).map(duel => duel.id), [duels]);
+  const notes = useDuelNotes(uid, duelIds);
 
   // Página cheia = pode haver mais; aí pede a próxima ao chegar no fim.
   const hasMore = !!duels && duels.length === max;
@@ -52,6 +55,7 @@ function DuelHistoryScreen({ navigation }: DuelHistoryProps) {
               duel={item}
               myUid={uid}
               opponent={profiles[opponentUids[index]]}
+              note={notes[item.id]}
               onPress={() => navigation.navigate('Duel', { duelId: item.id })}
             />
           )}

@@ -69,3 +69,18 @@ export const StarsText = styled.Text<{ outcome: Outcome }>`
   font-size: ${fontSize.body}px;
   font-weight: 800;
 `;
+
+export const NoteRow = styled.View`
+  flex-direction: row;
+  align-items: flex-start;
+  gap: ${spacing.xs}px;
+  margin-top: ${spacing.xs}px;
+`;
+
+export const NoteText = styled.Text`
+  flex: 1;
+  color: ${colors.text.secondary};
+  font-size: ${fontSize.caption}px;
+  font-style: italic;
+  line-height: 16px;
+`;
