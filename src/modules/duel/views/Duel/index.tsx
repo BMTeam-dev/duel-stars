@@ -133,14 +133,36 @@ function DuelScreen({ navigation, route }: DuelProps) {
     const confirmed = await showDialog({
       icon: 'alert',
       title: 'Contestar o resultado?',
-      message: `Você vai informar que ${nickOf(
-        realWinner,
-      )} venceu. Com vencedores diferentes, o duelo vai para disputa: as estrelas ficam travadas e, sem acordo em 48 horas, o duelo é cancelado.`,
+      message: `Você vai informar que ${
+        realWinner === myUid ? 'você' : nickOf(realWinner)
+      } venceu. Com vencedores diferentes, o duelo vai para disputa: as estrelas ficam travadas até um de vocês corrigir o resultado; sem acordo em 48 horas, o duelo é cancelado e as apostas voltam.`,
       confirmLabel: 'Contestar',
       cancelLabel: 'Voltar',
       destructive: true,
     });
     if (confirmed) send(realWinner);
+  };
+
+  // Disputa: concordar com a versão do oponente fecha o duelo na hora.
+  const agree = async (winnerUid: string) => {
+    const iLose = winnerUid !== myUid;
+    const confirmed = await showDialog({
+      icon: 'handshake',
+      title: 'Corrigir o resultado?',
+      message: `Você vai concordar que ${
+        iLose ? nickOf(winnerUid) : 'você'
+      } venceu. O duelo fecha na hora${
+        iLose
+          ? ` e você perde ${duel.stake} ${
+              duel.stake === 1 ? 'estrela' : 'estrelas'
+            }.`
+          : '.'
+      }`,
+      confirmLabel: 'Corrigir',
+      cancelLabel: 'Voltar',
+      destructive: iLose,
+    });
+    if (confirmed) send(winnerUid);
   };
 
   const header = (
@@ -254,12 +276,30 @@ function DuelScreen({ navigation, route }: DuelProps) {
       <StatusCard tone="negative">
         <Icon name="alert" color={colors.feedback.negative} />
         <StatusText>
-          Vocês informaram vencedores diferentes. As estrelas ficam travadas até
-          vocês se acertarem; sem acordo em 48 horas, o duelo é cancelado.
+          Vocês informaram vencedores diferentes: você disse que{' '}
+          {myReport === myUid ? 'venceu' : `${nickOf(myReport)} venceu`}, e{' '}
+          {nickOf(opponentUid)} disse que{' '}
+          {opponentReport === myUid ? 'você venceu' : 'venceu'}. As estrelas
+          ficam travadas. Se alguém se enganou, é só corrigir; sem acordo em 48
+          horas, o duelo é cancelado e as apostas voltam.
         </StatusText>
       </StatusCard>
     );
-    footer = <Button label="Voltar" variant="secondary" onPress={leave} />;
+    footer = (
+      <>
+        <Button
+          label={
+            opponentReport === myUid
+              ? 'Corrigir: na verdade, eu venci'
+              : `Corrigir: na verdade, ${nickOf(opponentReport)} venceu`
+          }
+          icon="handshake"
+          loading={sending}
+          onPress={() => agree(opponentReport)}
+        />
+        <Button label="Voltar" variant="ghost" onPress={leave} />
+      </>
+    );
   } else if (myReport && !opponentReport) {
     statusCard = (
       <StatusCard tone="neutral">

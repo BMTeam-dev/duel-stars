@@ -361,13 +361,20 @@ export const reportResult = onCall<{ duelId: string; winnerUid: string }>(async 
     const players = duel.players as string[];
     if (!players.includes(uid)) throw new HttpsError('permission-denied', 'Esse duelo não é seu.');
     if (!players.includes(winnerUid)) throw new HttpsError('invalid-argument', 'Vencedor inválido.');
-    if (duel.status !== 'active' && duel.status !== 'awaiting') {
+    if (duel.status !== 'active' && duel.status !== 'awaiting' && duel.status !== 'disputed') {
       throw new HttpsError('failed-precondition', 'Esse duelo já foi encerrado.');
     }
 
     const reads = await readFinalizeData(tx, players);
     const opponent = other(players, uid);
     const opponentReport: string | undefined = duel.reports?.[opponent];
+
+    // Em disputa, só muda alguma coisa quem corrige o próprio informe pra
+    // concordar com o do oponente - aí o duelo fecha. Repetir a mesma
+    // versão não reinicia o prazo de 48h nem conta outra disputa.
+    if (duel.status === 'disputed' && opponentReport !== winnerUid) {
+      return { kind: 'unchanged' as const };
+    }
 
     if (!opponentReport) {
       tx.update(duelRef, {
@@ -403,7 +410,7 @@ export const reportResult = onCall<{ duelId: string; winnerUid: string }>(async 
     });
   } else if (outcome.kind === 'done') {
     await notifyDone(outcome.winnerUid, outcome.loserUid, outcome.stake, duelRef.id);
-  } else {
+  } else if (outcome.kind === 'disputed') {
     await Promise.all(
       outcome.players.map(player =>
         notifyUser(player, {
@@ -414,7 +421,7 @@ export const reportResult = onCall<{ duelId: string; winnerUid: string }>(async 
       ),
     );
   }
-  return { status: outcome.kind };
+  return { status: outcome.kind === 'unchanged' ? 'disputed' : outcome.kind };
 });
 
 // Prazos do duelo (doc do MVP, "Regras das estrelas"): sem confirmação em
