@@ -1119,9 +1119,14 @@ async function settleAndAdvance(
 
 // --- Fim e bolo de estrelas -------------------------------------------------
 
-// 50% campeão, 30% vice, 10% para 3º e 4º; sobra de arredondamento (e
-// prêmio sem dono) vai pro campeão. Sem campeão, todo mundo recebe de volta.
-const PRIZE_SHARES = [0.5, 0.3, 0.1, 0.1];
+// Divisão do bolo pelo tamanho do torneio: 2-3 jogadores, tudo pro campeão;
+// 4-7, 70/30; 8+, 50/30/10/10. Sobra de arredondamento (e prêmio sem dono)
+// vai pro campeão. Sem campeão, todo mundo recebe de volta.
+function prizeShares(players: number): number[] {
+  if (players < 4) return [1];
+  if (players < 8) return [0.7, 0.3];
+  return [0.5, 0.3, 0.1, 0.1];
+}
 
 function payout(
   tx: Transaction,
@@ -1138,9 +1143,10 @@ function payout(
     delta.set(uid, (delta.get(uid) ?? 0) + n);
   if (champion && pot > 0) {
     let paid = 0;
+    const shares = prizeShares(players.length);
     placements.forEach((uid, i) => {
       if (!uid || i === 0) return;
-      const prize = Math.floor(pot * PRIZE_SHARES[i]);
+      const prize = Math.floor(pot * (shares[i] ?? 0));
       add(uid, prize);
       paid += prize;
     });

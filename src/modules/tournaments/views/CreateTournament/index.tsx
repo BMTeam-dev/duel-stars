@@ -388,7 +388,7 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
             <Hint>
               {starsEntry === 0
                 ? 'Sem bolo de estrelas.'
-                : 'Cada inscrito trava essas estrelas; o bolo vai 50% pro 1º, 30% pro 2º e 10% pro 3º e 4º.'}
+                : 'Cada inscrito trava essas estrelas. O bolo: até 3 jogadores, tudo pro campeão; 4 a 7, 70% e 30%; 8 ou mais, 50%, 30% e 10% pro 3º e 4º.'}
             </Hint>
             <TextField
               label="Mínimo de estrelas para entrar (opcional)"
