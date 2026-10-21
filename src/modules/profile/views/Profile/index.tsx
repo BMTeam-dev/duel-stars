@@ -19,6 +19,7 @@ import { usePublicProfiles } from '../../../../services/profile/usePublicProfile
 import { pickFregues, pickNemesis, Rival, subscribeRivals } from '../../../../services/rivals/rivals.service';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Button } from '../../../../shared/ui/Button';
+import { GameIdRow } from '../../../../shared/ui/GameIdRow';
 import { useDialog } from '../../../../shared/ui/dialog/DialogProvider';
 import { Icon } from '../../../../shared/ui/Icon';
 import { toast } from '../../../../shared/ui/toast';
@@ -31,6 +32,7 @@ import {
   CityRow,
   CityText,
   EditButton,
+  GameIds,
   HistoryList,
   Identity,
   LevelText,
@@ -199,6 +201,17 @@ function ProfileScreen({ navigation }: ProfileProps) {
             <StatLabel>Sequência</StatLabel>
           </StatTile>
         </StatsRow>
+
+        <SectionHeader>
+          <SectionTitle>IDs dos jogos</SectionTitle>
+          <SeeAll onPress={() => navigation.navigate('EditProfile')} hitSlop={8}>
+            <SeeAllText>Editar</SeeAllText>
+          </SeeAll>
+        </SectionHeader>
+        <GameIds>
+          <GameIdRow game="md" label="Master Duel" id={profile.gameIds.md} emptyText="Não cadastrado" />
+          <GameIdRow game="dl" label="Duel Links" id={profile.gameIds.dl} emptyText="Não cadastrado" />
+        </GameIds>
 
         <SectionTitle>Rivais</SectionTitle>
         <RivalsCard fregues={fregues} nemesis={nemesis} profiles={profiles} />

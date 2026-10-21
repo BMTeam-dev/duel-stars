@@ -20,6 +20,7 @@ function fetchProfile(uid: string): Promise<PublicProfile | null> {
               photoUrl: data.photoUrl ?? null,
               cityName: data.cityName,
               stateId: data.stateId,
+              gameIds: data.gameIds ?? {},
             }
           : null;
       })

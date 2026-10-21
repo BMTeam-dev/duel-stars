@@ -23,7 +23,21 @@ service cloud.firestore {
     // Campos que o próprio usuário pode alterar depois do cadastro.
     function editableFields() {
       return ['nick', 'nickLower', 'nickChangedAt', 'photoUrl', 'cityId', 'cityName',
-              'stateId', 'fcmTokens', 'notificationsEnabled'];
+              'stateId', 'fcmTokens', 'notificationsEnabled', 'gameIds'];
+    }
+
+    // IDs de jogador do Master Duel / Duel Links: só os 9 dígitos.
+    function isGameId(id) {
+      return id is string && id.matches('^[0-9]{9}$');
+    }
+
+    function validGameIds(data) {
+      return !('gameIds' in data) || (
+        data.gameIds is map
+        && data.gameIds.keys().hasOnly(['md', 'dl'])
+        && (!('md' in data.gameIds) || isGameId(data.gameIds.md))
+        && (!('dl' in data.gameIds) || isGameId(data.gameIds.dl))
+      );
     }
 
     // Carteira inicial de cada categoria (TCG, Master Duel, Duel Links).
@@ -40,6 +54,7 @@ service cloud.firestore {
         && request.resource.data.wallets == {
              'tcg': initialWallet(), 'md': initialWallet(), 'dl': initialWallet()}
         && request.resource.data.disputeCount == 0
+        && validGameIds(request.resource.data)
         && request.resource.data.createdAt == request.time
         && request.resource.data.nickChangedAt == null
         && isNick(request.resource.data.nickLower)
@@ -49,6 +64,7 @@ service cloud.firestore {
 
       allow update: if signedIn() && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(editableFields())
+        && validGameIds(request.resource.data)
         && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['nick', 'nickLower'])
           || (

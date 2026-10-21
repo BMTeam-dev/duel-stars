@@ -79,4 +79,6 @@ export type PublicProfile = {
   photoUrl: string | null;
   cityName: string;
   stateId: string;
+  // IDs de jogador do Master Duel / Duel Links (9 dígitos), se cadastrados.
+  gameIds: Partial<Record<'md' | 'dl', string>>;
 };

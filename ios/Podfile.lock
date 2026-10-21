@@ -3271,6 +3271,28 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RNCClipboard (1.16.3):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-bridging
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - RNFBAnalytics (26.4.0):
     - FirebaseAnalytics/Core (= 12.18.0)
     - FirebaseAnalytics/IdentitySupport (= 12.18.0)
@@ -3441,7 +3463,7 @@ PODS:
     - ReactNativeDependencies
     - RNFBApp
     - Yoga
-  - RNGestureHandler (3.3.0):
+  - RNGestureHandler (3.4.0):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -3587,7 +3609,7 @@ PODS:
     - ReactNativeDependencies
     - RNWorklets
     - Yoga
-  - RNScreens (4.28.0):
+  - RNScreens (4.30.0):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -3609,9 +3631,9 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-    - RNScreens/common (= 4.28.0)
+    - RNScreens/common (= 4.30.0)
     - Yoga
-  - RNScreens/common (4.28.0):
+  - RNScreens/common (4.30.0):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -3854,6 +3876,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - RNBootSplash (from `../node_modules/react-native-bootsplash`)
+  - "RNCClipboard (from `../node_modules/@react-native-clipboard/clipboard`)"
   - "RNFBAnalytics (from `../node_modules/@react-native-firebase/analytics`)"
   - "RNFBApp (from `../node_modules/@react-native-firebase/app`)"
   - "RNFBAuth (from `../node_modules/@react-native-firebase/auth`)"
@@ -4094,6 +4117,8 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
   RNBootSplash:
     :path: "../node_modules/react-native-bootsplash"
+  RNCClipboard:
+    :path: "../node_modules/@react-native-clipboard/clipboard"
   RNFBAnalytics:
     :path: "../node_modules/@react-native-firebase/analytics"
   RNFBApp:
@@ -4255,6 +4280,7 @@ SPEC CHECKSUMS:
   ReactNativeDependencies: 94c922c39e0e6150ee9ad05e2ca1946e0ef55783
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   RNBootSplash: cb275f890209996cb68463a1bd2f65c483331ac7
+  RNCClipboard: e706ef7ccbbfd69f829c1b683f893bc7668c9fdb
   RNFBAnalytics: 0356e4594625941a61260594cf0fb50a35e76c32
   RNFBApp: b2a6488cfc84694ae79abb10474c0aa030722246
   RNFBAuth: d428e3285d3480b0cb8fd9152e0b236d8022a919
@@ -4262,10 +4288,10 @@ SPEC CHECKSUMS:
   RNFBFirestore: 6aeedb6887d78859060986e852a68fad7c3c8da4
   RNFBFunctions: 29ddf52b99d18d0831b9448627a0c74ec856e6fa
   RNFBMessaging: 90bab2ad25b0e6fc61b1dda8e9dae53f48993a69
-  RNGestureHandler: ccdfb6596e64fa44e21173364ac57a7374e5bb79
+  RNGestureHandler: 1d2dbd83c97892e717fdac6e8684f278bf3b951c
   RNGoogleSignin: 4f364ff45a50422c0b267176799471f58a54e2a8
   RNReanimated: 61460cb633e8f22b3049882003d193ee86a3897a
-  RNScreens: 3c977859fd13e67dc4ebfc24afb4d7c2e894db61
+  RNScreens: 4bac14b997bcf160be0a967bfdae27956847f289
   RNSVG: ea960a71afc1707bd14dead3ec578763321f7096
   RNWorklets: 941265f848d4f2a906a0ed4ba64e6671cf54d34e
   SocketRocket: 37aec555668fb852ec12e3c0de59a86ca58f0871

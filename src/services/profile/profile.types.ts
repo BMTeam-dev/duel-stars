@@ -1,5 +1,8 @@
 import type { Category } from '../duels/duels.types';
 
+// IDs de jogador do Master Duel e do Duel Links (9 dígitos, só os números).
+export type GameIds = Partial<Record<'md' | 'dl', string>>;
+
 // Carteira de uma categoria: escrita só pelas Cloud Functions.
 export type Wallet = {
   stars: number;
@@ -24,6 +27,7 @@ export type UserProfile = {
   stateId: string;
   // Uma carteira por categoria (TCG, Master Duel, Duel Links).
   wallets: Record<Category, Wallet>;
+  gameIds: GameIds;
   notificationsEnabled: boolean;
   // null = nunca trocou o nick (a primeira troca é livre, ver firestore.rules).
   nickChangedAt: number | null;

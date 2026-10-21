@@ -49,6 +49,7 @@ export function subscribeRanking(
           photoUrl: data.photoUrl ?? null,
           cityName: data.cityName,
           stateId: data.stateId,
+          gameIds: data.gameIds ?? {},
           stars: wallet.stars,
           wins: wallet.wins,
           losses: wallet.losses,

@@ -69,6 +69,7 @@ export const FieldLabel = styled.Text`
 `;
 
 export const CityButton = styled.Pressable`
+  margin-bottom: ${spacing.xl}px;
   flex-direction: row;
   align-items: center;
   gap: ${spacing.md}px;

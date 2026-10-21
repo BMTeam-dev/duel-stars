@@ -9,7 +9,7 @@ import {
 } from '@react-native-firebase/firestore';
 import { db } from '../firestore/db';
 import { CATEGORIES } from '../duels/duels.types';
-import { City, INITIAL_STARS, NICK_CHANGE_INTERVAL_DAYS, UserProfile, Wallet } from './profile.types';
+import { City, GameIds, INITIAL_STARS, NICK_CHANGE_INTERVAL_DAYS, UserProfile, Wallet } from './profile.types';
 
 const NICK_PATTERN = /^[a-z0-9_]{3,20}$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -110,6 +110,7 @@ export function nextNickChangeAt(profile: UserProfile): number | null {
 type ProfileChanges = {
   nick?: string;
   city?: City;
+  gameIds?: GameIds;
 };
 
 export async function updateProfile(profile: UserProfile, changes: ProfileChanges): Promise<void> {
@@ -135,8 +136,30 @@ export async function updateProfile(profile: UserProfile, changes: ProfileChange
     userUpdate.stateId = changes.city.stateId;
   }
 
+  if (changes.gameIds) {
+    // Só os preenchidos: apagar o campo = tirar o ID do perfil.
+    userUpdate.gameIds = Object.fromEntries(
+      Object.entries(changes.gameIds).filter(([, id]) => id && isValidGameId(id)),
+    );
+  }
+
   batch.update(doc(db, 'users', profile.uid), userUpdate);
   await batch.commit();
+}
+
+// ID de jogador do Master Duel / Duel Links: 9 dígitos, mostrado como 213-581-496.
+export const GAME_ID_LENGTH = 9;
+
+export function normalizeGameId(text: string): string {
+  return text.replace(/\D/g, '').slice(0, GAME_ID_LENGTH);
+}
+
+export function formatGameId(digits: string): string {
+  return digits.replace(/(\d{3})(?=\d)/g, '$1-');
+}
+
+export function isValidGameId(digits: string): boolean {
+  return /^\d{9}$/.test(digits);
 }
 
 function toMillis(value: unknown): number | null {
@@ -150,6 +173,7 @@ function toProfile(uid: string, data: DocumentData): UserProfile {
     uid,
     nick: data.nick,
     photoUrl: data.photoUrl ?? null,
+    gameIds: data.gameIds ?? {},
     cityId: data.cityId,
     cityName: data.cityName,
     stateId: data.stateId,

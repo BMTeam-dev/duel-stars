@@ -28,6 +28,7 @@ import { AppSheet } from '../../../../shared/ui/AppSheet';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Button } from '../../../../shared/ui/Button';
 import { useDialog } from '../../../../shared/ui/dialog/DialogProvider';
+import { GameIdRow } from '../../../../shared/ui/GameIdRow';
 import { Icon, IconName } from '../../../../shared/ui/Icon';
 import { toast } from '../../../../shared/ui/toast';
 import { DuelNote } from '../../components/DuelNote';
@@ -373,16 +374,25 @@ function DuelScreen({ navigation, route }: DuelProps) {
           {duel.status === 'active' &&
             !myReport &&
             isOnlineCategory(duel.category) && (
-              <StatusCard tone="neutral">
-                <Icon
-                  name={duel.category === 'md' ? 'monitor' : 'cellphone'}
-                  color={colors.text.secondary}
+              <>
+                <StatusCard tone="neutral">
+                  <Icon
+                    name={duel.category === 'md' ? 'monitor' : 'cellphone'}
+                    color={colors.text.secondary}
+                  />
+                  <StatusText>
+                    Joguem no {CATEGORY_LABEL[duel.category]}. Quando terminar,
+                    volte aqui e informe quem venceu.
+                  </StatusText>
+                </StatusCard>
+                {/* Pra se adicionarem no jogo sem sair do app. */}
+                <GameIdRow
+                  game={duel.category as 'md' | 'dl'}
+                  label={`ID de @${opponent?.nick ?? '...'} no ${CATEGORY_LABEL[duel.category]}`}
+                  id={opponent?.gameIds[duel.category as 'md' | 'dl']}
+                  emptyText={`@${opponent?.nick ?? '...'} ainda não cadastrou o ID`}
                 />
-                <StatusText>
-                  Joguem no {CATEGORY_LABEL[duel.category]}. Quando terminar,
-                  volte aqui e informe quem venceu.
-                </StatusText>
-              </StatusCard>
+              </>
             )}
         </ScrollView>
       </KeyboardAvoidingView>

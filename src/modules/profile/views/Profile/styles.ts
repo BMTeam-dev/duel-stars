@@ -212,3 +212,8 @@ export const HistoryList = styled.View`
   gap: ${spacing.sm}px;
   margin-bottom: ${spacing.xl}px;
 `;
+
+export const GameIds = styled.View`
+  gap: ${spacing.sm}px;
+  margin-bottom: ${spacing.xl}px;
+`;
