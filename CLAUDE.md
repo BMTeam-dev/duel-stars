@@ -130,6 +130,10 @@ novo.
   `firebase deploy --only firestore` (o `firebase.json` já aponta pro banco
   `duel-start`). Estrelas/vitórias/derrotas só nascem com valor fixo no
   cadastro e depois só mudam via Cloud Functions - o app nunca escreve isso.
+- Todo `onSnapshot` precisa do callback de erro (use `listenerError` de
+  `services/firestore/listenerError.ts`): sem ele, o RNFirebase chama o
+  callback de sucesso com `snapshot = null` quando a escuta cai (permissão,
+  doc apagado, rede) e o app quebra.
 - Perfil: `users/{uid}`; unicidade de nick: `nicks/{nickEmMinúsculas}`
   (ver `services/profile/profile.service.ts`).
 

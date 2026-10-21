@@ -11,6 +11,7 @@ import {
   type DocumentData,
 } from '@react-native-firebase/firestore';
 import { db } from '../firestore/db';
+import { listenerError } from '../firestore/listenerError';
 import { Category, ChallengePreview, Duel, DuelFormat, FeedPost } from './duels.types';
 
 // Mesma região das Functions (functions/src/config.ts).
@@ -99,17 +100,29 @@ export function subscribeChallenge(
   token: string,
   onChange: (challenge: { status: string; duelId: string | null }) => void,
 ): () => void {
-  return onSnapshot(doc(db, 'challenges', token), snapshot => {
-    const data = snapshot.data();
-    if (data) onChange({ status: data.status, duelId: data.duelId ?? null });
-  });
+  return onSnapshot(
+    doc(db, 'challenges', token),
+    snapshot => {
+      const data = snapshot.data();
+      if (data) onChange({ status: data.status, duelId: data.duelId ?? null });
+    },
+    listenerError('subscribeChallenge'),
+  );
 }
 
 export function subscribeDuel(duelId: string, onChange: (duel: Duel | null) => void): () => void {
-  return onSnapshot(doc(db, 'duels', duelId), snapshot => {
-    const data = snapshot.data();
-    onChange(data ? toDuel(snapshot.id, data) : null);
-  });
+  return onSnapshot(
+    doc(db, 'duels', duelId),
+    snapshot => {
+      const data = snapshot.data();
+      onChange(data ? toDuel(snapshot.id, data) : null);
+    },
+    // Sem acesso (ex.: o duelo foi apagado) = a tela mostra "não encontrado".
+    error => {
+      listenerError('subscribeDuel')(error);
+      onChange(null);
+    },
+  );
 }
 
 // Duelos recentes do jogador; quem chama filtra os que ainda estão abertos.
@@ -122,6 +135,7 @@ export function subscribeMyDuels(uid: string, onChange: (duels: Duel[]) => void)
       limit(10),
     ),
     snapshot => onChange(snapshot.docs.map(d => toDuel(d.id, d.data()))),
+    listenerError('subscribeMyDuels'),
   );
 }
 

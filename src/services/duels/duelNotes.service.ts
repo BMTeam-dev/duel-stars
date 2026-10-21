@@ -11,6 +11,7 @@ import {
   where,
 } from '@react-native-firebase/firestore';
 import { db } from '../firestore/db';
+import { listenerError } from '../firestore/listenerError';
 
 // Anotação privada de cada duelo (deck usado, o que aconteceu...), em
 // users/{uid}/duelNotes/{duelId}. Só o dono vê - ver firestore.rules.
@@ -30,7 +31,11 @@ export function subscribeDuelNote(
   duelId: string,
   onChange: (text: string) => void,
 ): () => void {
-  return onSnapshot(doc(notesOf(uid), duelId), snapshot => onChange(snapshot.data()?.text ?? ''));
+  return onSnapshot(
+    doc(notesOf(uid), duelId),
+    snapshot => onChange(snapshot.data()?.text ?? ''),
+    listenerError('subscribeDuelNote'),
+  );
 }
 
 // O "in" do Firestore aceita até 30 ids por consulta.
@@ -59,6 +64,7 @@ export function useDuelNotes(uid: string | undefined, duelIds: string[]): Record
             chunks[index] = Object.fromEntries(snapshot.docs.map(d => [d.id, d.data().text as string]));
             setNotes(Object.assign({}, ...chunks));
           },
+          listenerError('useDuelNotes'),
         ),
       );
     }
