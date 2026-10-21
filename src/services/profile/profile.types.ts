@@ -9,6 +9,8 @@ export type Wallet = {
   losses: number;
   streak: number;
   bestStreak: number;
+  // true depois do primeiro duelo encerrado na categoria: só aí aparece no ranking.
+  ranked?: boolean;
 };
 
 // Formato do perfil como o app usa (datas em millis, pra caber no redux).

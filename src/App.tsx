@@ -24,6 +24,7 @@ import { analyticsService } from './services/analytics/analytics.service';
 import { ScreensTypes } from './navigation/screensTypes';
 import { DialogProvider } from './shared/ui/dialog/DialogProvider';
 import { colors } from './configs/colors';
+import { OfflineScreen } from './shared/ui/OfflineScreen';
 
 function AuthListener({ navigationRef }: { navigationRef: NavigationContainerRef<ScreensTypes> }) {
   useAuthListener();
@@ -87,6 +88,7 @@ export default function App() {
                   position="top-center"
                   toastOptions={{ style: { backgroundColor: colors.surfaceRaised } }}
                 />
+                <OfflineScreen />
               </PaperProvider>
             </NavigationContainer>
           </SafeAreaProvider>

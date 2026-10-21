@@ -34,7 +34,7 @@ do resto do projeto.
   `crashReporting/` (Crashlytics). Services não importam de `modules/`
   nunca - a dependência é sempre modules → services, não o contrário.
 - `modules/<nome>/` - um domínio do app (`auth`, `feed`, `duel`, `profile`,
-  `onboarding`, `cards`). Dentro dele:
+  `onboarding`, `ranking`, `cards`). Dentro dele:
   - `views/<Tela>/index.tsx` + `views/<Tela>/styles.ts` - uma pasta por tela.
   - `components/<Componente>/index.tsx` + `styles.ts` - peças usadas só pelas
     telas desse módulo.

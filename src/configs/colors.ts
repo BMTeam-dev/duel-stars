@@ -22,6 +22,12 @@ export const colors = {
     soft: 'rgba(232, 185, 49, 0.14)',
   },
 
+  // Pódio do ranking (o 1º usa o dourado).
+  medal: {
+    silver: '#C3C8D4',
+    bronze: '#D08A4E',
+  },
+
   feedback: {
     positive: '#4BD07A',
     negative: '#FF6B5E',

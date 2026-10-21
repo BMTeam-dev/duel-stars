@@ -285,12 +285,15 @@ function applyFinalize(
     [path('wins')]: FieldValue.increment(1),
     [path('streak')]: streak,
     [path('bestStreak')]: Math.max(streak, winnerWallet.bestStreak ?? 0),
+    // Entra no ranking da categoria a partir do primeiro duelo encerrado.
+    [path('ranked')]: true,
   });
   tx.update(users.doc(loserUid), {
     [path('stars')]: FieldValue.increment(-stake),
     [path('lockedStars')]: FieldValue.increment(-stake),
     [path('losses')]: FieldValue.increment(1),
     [path('streak')]: 0,
+    [path('ranked')]: true,
   });
 
   // Placar entre os dois - base de "Meu Freguês" / "Minha Nêmesis".

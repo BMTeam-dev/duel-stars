@@ -11,5 +11,6 @@ export type ScanChallengeProps = StackScreenProps<'ScanChallenge'>;
 export type DuelProps = StackScreenProps<'Duel'>;
 
 export type FeedProps = TabScreenProps<'Feed'>;
+export type RankingProps = TabScreenProps<'Ranking'>;
 export type CardsProps = TabScreenProps<'Cards'>;
 export type ProfileProps = TabScreenProps<'Profile'>;

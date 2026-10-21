@@ -115,6 +115,222 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "wallets.tcg.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.tcg.stars",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "wallets.tcg.wins",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cityId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.tcg.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.tcg.stars",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "wallets.tcg.wins",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "wallets.tcg.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.tcg.stars",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cityId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.tcg.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.tcg.stars",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "wallets.md.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.md.stars",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "wallets.md.wins",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cityId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.md.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.md.stars",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "wallets.md.wins",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "wallets.md.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.md.stars",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cityId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.md.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.md.stars",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "wallets.dl.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.dl.stars",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "wallets.dl.wins",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cityId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.dl.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.dl.stars",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "wallets.dl.wins",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "wallets.dl.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.dl.stars",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cityId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.dl.ranked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "wallets.dl.stars",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

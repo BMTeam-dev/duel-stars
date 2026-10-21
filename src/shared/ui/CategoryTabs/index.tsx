@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { colors } from '../../../../configs/colors';
-import { Category, CATEGORIES, CATEGORY_ICON, CATEGORY_LABEL } from '../../../../services/duels/duels.types';
-import { Icon } from '../../../../shared/ui/Icon';
+import { colors } from '../../../configs/colors';
+import { Category, CATEGORIES, CATEGORY_ICON, CATEGORY_LABEL } from '../../../services/duels/duels.types';
+import { Icon } from '../Icon';
 import { Row, Tab, TabText } from './styles';
 
 type Props = {

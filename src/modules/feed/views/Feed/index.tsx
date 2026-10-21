@@ -12,23 +12,15 @@ import { subscribeFeed, subscribeMyDuels } from '../../../../services/duels/duel
 import { Duel, FeedPost } from '../../../../services/duels/duels.types';
 import { usePublicProfiles } from '../../../../services/profile/usePublicProfiles';
 import { useActiveCategory } from '../../../../services/profile/useActiveCategory';
-import { CategoryTabs } from '../../components/CategoryTabs';
+import { CategoryTabs } from '../../../../shared/ui/CategoryTabs';
+import { Scope, ScopeChips } from '../../../../shared/ui/ScopeChips';
 import { Button } from '../../../../shared/ui/Button';
 import { EmptyState } from '../../../../shared/ui/EmptyState';
 import { ActiveDuelBanner } from '../../components/ActiveDuelBanner';
 import { ChallengeSheet } from '../../components/ChallengeSheet';
 import { FeedHeader } from '../../components/FeedHeader';
 import { FeedPostItem } from '../../components/FeedPostItem';
-import {
-  ChallengeButtonArea,
-  Container,
-  Header,
-  ScopeChip,
-  ScopeChipText,
-  ScopeRow,
-} from './styles';
-
-type Scope = 'city' | 'global';
+import { ChallengeButtonArea, Container, Header } from './styles';
 
 const OPEN_STATUSES: Duel['status'][] = ['active', 'awaiting', 'disputed'];
 
@@ -68,14 +60,7 @@ function FeedScreen({ navigation }: FeedProps) {
         {profile && <FeedHeader profile={profile} onPress={() => navigation.navigate('Profile')} />}
         <Header>
           <CategoryTabs value={category} onChange={setCategory} />
-          <ScopeRow>
-            <ScopeChip active={scope === 'city'} onPress={() => setScope('city')}>
-              <ScopeChipText active={scope === 'city'}>{profile?.cityName ?? 'Minha cidade'}</ScopeChipText>
-            </ScopeChip>
-            <ScopeChip active={scope === 'global'} onPress={() => setScope('global')}>
-              <ScopeChipText active={scope === 'global'}>Geral</ScopeChipText>
-            </ScopeChip>
-          </ScopeRow>
+          <ScopeChips value={scope} cityName={profile?.cityName} onChange={setScope} />
         </Header>
 
         {openDuel && profile && (

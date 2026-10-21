@@ -6,6 +6,7 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 // em TabsTypes, o resto em ScreensTypes.
 export type TabsTypes = {
   Feed: undefined;
+  Ranking: undefined;
   Cards: undefined;
   Profile: undefined;
 };
