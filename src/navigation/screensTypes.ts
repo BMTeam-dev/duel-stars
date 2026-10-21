@@ -6,6 +6,7 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 // em TabsTypes, o resto em ScreensTypes.
 export type TabsTypes = {
   Feed: undefined;
+  Tournaments: undefined;
   Ranking: undefined;
   Cards: undefined;
   Profile: undefined;
@@ -18,6 +19,8 @@ export type ScreensTypes = {
   MainTabs: NavigatorScreenParams<TabsTypes>;
   EditProfile: undefined;
   DuelHistory: undefined;
+  CreateTournament: undefined;
+  Tournament: { tournamentId: string };
   CreateChallenge: undefined;
   // 'code': só o campo do código, sem câmera (categorias online).
   ScanChallenge: { mode?: 'camera' | 'code' } | undefined;

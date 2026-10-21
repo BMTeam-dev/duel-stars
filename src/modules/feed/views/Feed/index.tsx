@@ -20,6 +20,7 @@ import { ActiveDuelBanner } from '../../components/ActiveDuelBanner';
 import { ChallengeSheet } from '../../components/ChallengeSheet';
 import { FeedHeader } from '../../components/FeedHeader';
 import { FeedPostItem } from '../../components/FeedPostItem';
+import { OpenTournaments } from '../../components/OpenTournaments';
 import { ChallengeButtonArea, Container, Header } from './styles';
 
 const OPEN_STATUSES: Duel['status'][] = ['active', 'awaiting', 'disputed'];
@@ -70,6 +71,12 @@ function FeedScreen({ navigation }: FeedProps) {
             onPress={() => navigation.navigate('Duel', { duelId: openDuel.id })}
           />
         )}
+
+        <OpenTournaments
+          category={category}
+          onOpen={tournamentId => navigation.navigate('Tournament', { tournamentId })}
+          onSeeAll={() => navigation.navigate('Tournaments')}
+        />
 
         {posts === null ? (
           <ActivityIndicator color={colors.gold.main} style={{ marginTop: spacing.xxl }} />

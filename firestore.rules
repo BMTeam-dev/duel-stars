@@ -114,6 +114,19 @@ service cloud.firestore {
     // Um doc por nick (id = nick em minúsculas) garante que ele é único.
     // Ao trocar de nick, o antigo fica com `releasedAt` e continua reservado
     // por 30 dias, pra ninguém se passar pelo jogador logo depois da troca.
+    // Torneios: escritos só pelas Cloud Functions (functions/src/tournaments.ts).
+    match /tournaments/{id} {
+      allow read: if signedIn();
+      match /players/{playerUid} {
+        allow read: if signedIn();
+      }
+    }
+
+    // Senha do torneio privado: só o organizador lê (pra repassar).
+    match /tournamentSecrets/{id} {
+      allow read: if signedIn() && resource.data.organizerUid == request.auth.uid;
+    }
+
     match /nicks/{nick} {
       allow read: if signedIn();
 

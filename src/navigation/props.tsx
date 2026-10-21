@@ -7,11 +7,14 @@ export type SignupProps = StackScreenProps<'Signup'>;
 export type OnboardingProps = StackScreenProps<'Onboarding'>;
 export type EditProfileProps = StackScreenProps<'EditProfile'>;
 export type DuelHistoryProps = StackScreenProps<'DuelHistory'>;
+export type CreateTournamentProps = StackScreenProps<'CreateTournament'>;
+export type TournamentProps = StackScreenProps<'Tournament'>;
 export type CreateChallengeProps = StackScreenProps<'CreateChallenge'>;
 export type ScanChallengeProps = StackScreenProps<'ScanChallenge'>;
 export type DuelProps = StackScreenProps<'Duel'>;
 
 export type FeedProps = TabScreenProps<'Feed'>;
+export type TournamentsProps = TabScreenProps<'Tournaments'>;
 export type RankingProps = TabScreenProps<'Ranking'>;
 export type CardsProps = TabScreenProps<'Cards'>;
 export type ProfileProps = TabScreenProps<'Profile'>;
