@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFE08A"/>
+      <stop offset="0.5" stop-color="#E8B931"/>
+      <stop offset="1" stop-color="#B88A12"/>
+    </linearGradient>
+  </defs>
+  <!-- estrela de 4 pontas (a das estrelas apostadas) -->
+  <path fill="url(#gold)" d="M512 112 C548 360 664 476 912 512 C664 548 548 664 512 912 C476 664 360 548 112 512 C360 476 476 360 512 112 Z"/>
+  <!-- brilho menor -->
+  <path fill="#FFE08A" d="M784 176 C792 232 816 256 872 264 C816 272 792 296 784 352 C776 296 752 272 696 264 C752 256 776 232 784 176 Z"/>
+</svg>

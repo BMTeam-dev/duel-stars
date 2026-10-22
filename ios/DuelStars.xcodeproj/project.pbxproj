@@ -13,6 +13,8 @@
 		698A9DE2B92DECC8458F4CE0 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 489D3A65D527D2477711C8F4 /* GoogleService-Info.plist */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		FA357E47E2B14B3C82D13914 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3A27D0B005684BC384056AA2 /* BootSplash.storyboard */; };
+		8E94C69746D34C9CAC553BED /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 61CB67EC0136421F9335B0AC /* Colors.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +29,8 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = DuelStars/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = DuelStars/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		3A27D0B005684BC384056AA2 /* BootSplash.storyboard */ = {isa = PBXFileReference; name = "BootSplash.storyboard"; path = "DuelStars/BootSplash.storyboard"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		61CB67EC0136421F9335B0AC /* Colors.xcassets */ = {isa = PBXFileReference; name = "Colors.xcassets"; path = "DuelStars/Colors.xcassets"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = folder.assetcatalog; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -50,6 +54,8 @@
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 				489D3A65D527D2477711C8F4 /* GoogleService-Info.plist */,
+				3A27D0B005684BC384056AA2 /* BootSplash.storyboard */,
+				61CB67EC0136421F9335B0AC /* Colors.xcassets */,
 			);
 			name = DuelStars;
 			sourceTree = "<group>";
@@ -167,6 +173,8 @@
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				698A9DE2B92DECC8458F4CE0 /* GoogleService-Info.plist in Resources */,
 				53A8FB3D98EDA5C408E3D4D7 /* PrivacyInfo.xcprivacy in Resources */,
+				FA357E47E2B14B3C82D13914 /* BootSplash.storyboard in Resources */,
+				8E94C69746D34C9CAC553BED /* Colors.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
