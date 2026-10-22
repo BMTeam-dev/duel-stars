@@ -23,6 +23,8 @@ export type Tournament = {
   minStars: number | null;
   maxPlayers: number;
   roundMode: RoundMode;
+  // Pede o print do deck; o organizador aprova antes do check-in.
+  requireDeck: boolean;
   // Modo automático: duração de cada rodada. null = sem prazo.
   roundMinutes: number | null;
   // Modo manual: 'ready' = confrontos prontos esperando o organizador;
@@ -80,10 +82,16 @@ export function roundLabel(round: number, rounds: number): string {
   return `Rodada ${round}`;
 }
 
+// null = torneio sem print do deck.
+export type DeckStatus = 'missing' | 'pending' | 'approved' | 'rejected';
+
 export type TournamentPlayer = {
   uid: string;
   paid: boolean;
   checkedIn: boolean;
+  deckStatus: DeckStatus | null;
+  deckPath: string | null;
+  deckReason: string | null;
   // Suíço:
   points: number;
   wins: number;
@@ -108,6 +116,7 @@ export type NewTournament = {
   minStars: number | null;
   maxPlayers: number;
   roundMode: RoundMode;
+  requireDeck: boolean;
   roundMinutes: number | null;
   startsAt: number | null;
 };

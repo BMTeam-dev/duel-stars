@@ -62,6 +62,7 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
   const [listed, setListed] = useState(true);
   const [contact, setContact] = useState('');
   const [paid, setPaid] = useState(false);
+  const [requireDeck, setRequireDeck] = useState(false);
   const [fee, setFee] = useState('');
   const [pixKey, setPixKey] = useState('');
   const [starsEntry, setStarsEntry] = useState(0);
@@ -112,6 +113,7 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
         minStars: Number(minStars) > 0 ? Number(minStars) : null,
         maxPlayers,
         roundMode,
+        requireDeck,
         roundMinutes: roundMode === 'manual' ? null : roundMinutes,
         startsAt: scheduled ? startsAt : null,
       });
@@ -281,6 +283,25 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
               value={maxPlayers}
               onChange={setMaxPlayers}
             />
+          </Section>
+
+          <Section>
+            <Label>Print do deck</Label>
+            <OptionChips<boolean>
+              options={[
+                { value: false, label: 'Não pedir' },
+                { value: true, label: 'Pedir e validar' },
+              ]}
+              value={requireDeck}
+              onChange={setRequireDeck}
+            />
+            {requireDeck && (
+              <Hint>
+                Cada jogador envia o print do deck na inscrição e só você vê.
+                Quem não tiver o deck aprovado não consegue fazer o check-in. As
+                imagens são apagadas quando o torneio termina.
+              </Hint>
+            )}
           </Section>
 
           <Section>

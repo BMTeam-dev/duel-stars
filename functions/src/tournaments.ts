@@ -17,6 +17,7 @@ import {
   notifyAllMedals,
   readFinalizeData,
 } from './duels';
+import { deleteDeckFile, deleteTournamentDecks } from './decks';
 import { notifyUser } from './notify';
 
 // Torneios: criação, inscrição, check-in e mata-mata (o suíço vem depois). Regras
@@ -159,6 +160,8 @@ export const createTournament = onCall(async request => {
     );
   // 'manual': o organizador inicia cada rodada e marca o prazo (data e hora).
   const roundMode = d.roundMode === 'manual' ? 'manual' : 'auto';
+  // Exige o print do deck: o organizador aprova antes do check-in.
+  const requireDeck = d.requireDeck === true;
   const roundMinutes =
     roundMode === 'manual' || d.roundMinutes == null
       ? null
@@ -214,6 +217,7 @@ export const createTournament = onCall(async request => {
       minStars,
       maxPlayers,
       roundMode,
+      requireDeck,
       roundMinutes,
       startsAt: noDate ? null : Timestamp.fromMillis(startsAtMs),
       code: randomCode(),
@@ -296,6 +300,7 @@ export const joinTournament = onCall(async request => {
       // Inscrição grátis já conta como paga.
       paid: !t.entryFeeCents,
       starsLocked: t.starsEntry,
+      deckStatus: t.requireDeck ? 'missing' : null,
     });
     tx.update(ref, {
       playerUids: FieldValue.arrayUnion(uid),
@@ -318,7 +323,7 @@ export async function leaveTournamentBeforeStart(
   ref: DocumentReference,
   uid: string,
 ) {
-  await db.runTransaction(async tx => {
+  const deckPath = await db.runTransaction(async tx => {
     const [snap, playerSnap] = await Promise.all([
       tx.get(ref),
       tx.get(ref.collection('players').doc(uid)),
@@ -344,7 +349,9 @@ export async function leaveTournamentBeforeStart(
         ),
       });
     }
+    return playerSnap.get('deckPath');
   });
+  await deleteDeckFile(deckPath);
 }
 
 export const leaveTournament = onCall(async request => {
@@ -362,6 +369,7 @@ export async function cancelTournamentBeforeStart(ref: DocumentReference) {
     const t = (await tx.get(ref)).data();
     if (t && NOT_STARTED.includes(t.status)) await cancelInTx(tx, ref, t);
   });
+  await deleteTournamentDecks(ref.id);
 }
 
 // Cancela antes do início: devolve as estrelas da inscrição de todo mundo.
@@ -410,6 +418,7 @@ export const cancelTournament = onCall(async request => {
       );
     await cancelInTx(tx, ref, t);
   });
+  await deleteTournamentDecks(ref.id);
   return { ok: true };
 });
 
@@ -543,6 +552,14 @@ export const checkInTournament = onCall(async request => {
       throw new HttpsError(
         'failed-precondition',
         'O organizador ainda não confirmou seu pagamento.',
+      );
+    }
+    if (t.requireDeck && player.get('deckStatus') !== 'approved') {
+      throw new HttpsError(
+        'failed-precondition',
+        player.get('deckStatus') === 'pending'
+          ? 'O organizador ainda não aprovou seu deck.'
+          : 'Envie o print do seu deck e espere a aprovação do organizador.',
       );
     }
     tx.update(player.ref, { checkedIn: true });
@@ -1273,6 +1290,8 @@ async function notifyFinished(
   t: DocumentData,
   champion: string,
 ) {
+  // Os prints do deck só servem pra validar: somem com o fim do torneio.
+  await deleteTournamentDecks(tRef.id);
   const players = (await tRef.collection('players').get()).docs.map(d => d.id);
   const championDoc = await users.doc(champion).get();
   // O `t` recebido é de antes da premiação: o bolo vem do documento atual.
@@ -1671,6 +1690,7 @@ async function expireUndated(now: number) {
       const t = (await tx.get(doc.ref)).data();
       if (t && NOT_STARTED.includes(t.status)) await cancelInTx(tx, doc.ref, t);
     });
+    await deleteTournamentDecks(doc.id);
     await notifyUser(doc.get('organizerUid'), {
       title: `${doc.get('name')} foi cancelado`,
       body: 'O torneio ficou 30 dias sem começar. As estrelas da inscrição voltaram para todos.',

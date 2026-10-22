@@ -1,5 +1,6 @@
 import { getApp } from '@react-native-firebase/app';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
+import { getDownloadURL, getStorage, putFile, ref } from '@react-native-firebase/storage';
 import {
   collection,
   doc,
@@ -39,6 +40,20 @@ export const startRound = (id: string, deadlineAt: number | null, message: strin
 export const setRoundDeadline = (id: string, deadlineAt: number | null) =>
   call('setTournamentRoundDeadline', { id, deadlineAt });
 export const postNotice = (id: string, message: string) => call('postTournamentNotice', { id, message });
+// Print do deck: sobe pro Storage (cada envio é um arquivo novo) e avisa o
+// backend, que guarda o caminho e põe o deck em análise. O organizador vai
+// nos metadados pra poder ler (storage.rules).
+export async function uploadDeck(t: Tournament, uid: string, localUri: string, contentType: string) {
+  const path = `decks/${t.id}/${uid}/${Date.now()}.jpg`;
+  await putFile(ref(getStorage(), path), localUri, {
+    contentType,
+    customMetadata: { organizerUid: t.organizerUid },
+  });
+  await call('submitTournamentDeck', { id: t.id, path });
+}
+export const getDeckUrl = (path: string) => getDownloadURL(ref(getStorage(), path));
+export const reviewDeck = (id: string, playerUid: string, approved: boolean, reason?: string) =>
+  call('reviewTournamentDeck', { id, playerUid, approved, reason });
 export const setPlayerPaid = (id: string, playerUid: string, paid: boolean) =>
   call('setTournamentPlayerPaid', { id, playerUid, paid });
 
@@ -66,6 +81,7 @@ function toTournament(id: string, data: DocumentData): Tournament {
     minStars: data.minStars ?? null,
     maxPlayers: data.maxPlayers,
     roundMode: data.roundMode === 'manual' ? 'manual' : 'auto',
+    requireDeck: !!data.requireDeck,
     roundMinutes: data.roundMinutes ?? null,
     roundPhase: data.roundPhase ?? null,
     roundLabel: data.roundLabel ?? null,
@@ -177,6 +193,9 @@ export function subscribeTournamentPlayers(id: string, onChange: (players: Tourn
           uid: d.id,
           paid: !!d.data().paid,
           checkedIn: !!d.data().checkedIn,
+          deckStatus: d.data().deckStatus ?? null,
+          deckPath: d.data().deckPath ?? null,
+          deckReason: d.data().deckReason ?? null,
           points: d.data().points ?? 0,
           wins: d.data().wins ?? 0,
           losses: d.data().losses ?? 0,

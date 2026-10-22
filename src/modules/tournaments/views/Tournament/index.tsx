@@ -24,6 +24,7 @@ import {
   needsGameId,
   postNotice,
   resolveMatch,
+  reviewDeck,
   setRoundDeadline,
   setPlayerPaid,
   startRound,
@@ -46,6 +47,8 @@ import {
   TournamentMatch,
   TournamentPlayer,
 } from '../../../../services/tournaments/tournaments.types';
+import { DECK_STATUS, DeckCard } from '../../components/DeckCard';
+import { DeckReviewSheet } from '../../components/DeckReviewSheet';
 import { MatchRow } from '../../components/MatchRow';
 import { RoundPanel } from '../../components/RoundPanel';
 import { RoundSheet, RoundSheetMode } from '../../components/RoundSheet';
@@ -73,6 +76,8 @@ import {
   TabsBar,
   CopyChip,
   CopyChipText,
+  DeckChip,
+  DeckChipText,
   Description,
   Empty,
   Footer,
@@ -137,6 +142,8 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   const passwordSheetRef = useRef<BottomSheetModal>(null);
   const resolveSheetRef = useRef<BottomSheetModal>(null);
   const roundSheetRef = useRef<BottomSheetModal>(null);
+  const deckSheetRef = useRef<BottomSheetModal>(null);
+  const [deckOf, setDeckOf] = useState<string | null>(null);
   const [roundSheetMode, setRoundSheetMode] = useState<RoundSheetMode>('start');
 
   useEffect(() => subscribeTournament(tournamentId, setT), [tournamentId]);
@@ -316,6 +323,24 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
       `${t.starsEntry} por jogador · bolo de ${t.starsEntry * t.playerCount}`,
     ]);
   if (t.minStars) info.push(['Mínimo para entrar', `${t.minStars} estrelas`]);
+  if (t.requireDeck)
+    info.push(['Print do deck', 'Obrigatório, validado pelo organizador']);
+  const deckPlayer = players.find(p => p.uid === deckOf) ?? null;
+  const pendingDecks = players.filter(p => p.deckStatus === 'pending').length;
+
+  const openDeck = (playerUid: string) => {
+    setDeckOf(playerUid);
+    deckSheetRef.current?.present();
+  };
+
+  const review = async (approved: boolean, reason: string) => {
+    if (!deckOf) return;
+    const done = await run(
+      () => reviewDeck(t.id, deckOf, approved, reason),
+      approved ? 'Deck aprovado' : 'Deck recusado',
+    );
+    if (done) deckSheetRef.current?.dismiss();
+  };
 
   let footer: React.ReactNode = null;
   if (open && !joined) {
@@ -482,7 +507,12 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     tab === 'standings' && !showStandings ? 'info' : tab ?? defaultTab(t);
   const tabs: { value: Tab; label: string; badge?: number }[] = [
     { value: 'info', label: 'Info' },
-    { value: 'players', label: 'Jogadores', badge: t.playerCount },
+    {
+      value: 'players',
+      label: 'Jogadores',
+      // Pro organizador, o número de decks esperando análise.
+      badge: isOrganizer && pendingDecks ? pendingDecks : t.playerCount,
+    },
     { value: 'rounds', label: 'Rodadas' },
     ...(showStandings
       ? [{ value: 'standings' as Tab, label: 'Classificação' }]
@@ -575,6 +605,9 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
 
         {currentTab === 'info' && (
           <>
+            {t.requireDeck && !!me && (
+              <DeckCard t={t} me={me} uid={uid} locked={!notStarted(t)} />
+            )}
             <Info>
               {info.map(([label, value]) => (
                 <InfoRow key={label}>
@@ -732,6 +765,25 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                         color={colors.feedback.positive}
                       />
                     )}
+                    {t.requireDeck && (
+                      <DeckChip
+                        disabled={!isOrganizer}
+                        onPress={() => openDeck(player.uid)}
+                      >
+                        <Icon
+                          name="cards"
+                          size={12}
+                          color={colors.text.secondary}
+                        />
+                        <DeckChipText
+                          tone={
+                            DECK_STATUS[player.deckStatus ?? 'missing'].tone
+                          }
+                        >
+                          {DECK_STATUS[player.deckStatus ?? 'missing'].label}
+                        </DeckChipText>
+                      </DeckChip>
+                    )}
                     {!!t.entryFeeCents && (
                       <PaidChip
                         paid={player.paid}
@@ -857,6 +909,15 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
         }
         busy={busy}
         onSubmit={submitRound}
+      />
+
+      <DeckReviewSheet
+        ref={deckSheetRef}
+        player={deckPlayer}
+        nick={profiles[deckOf ?? '']?.nick ?? '...'}
+        canReview={notStarted(t)}
+        busy={busy}
+        onReview={review}
       />
 
       <AppSheet ref={passwordSheetRef} title="Torneio privado">

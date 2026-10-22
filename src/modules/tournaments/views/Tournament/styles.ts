@@ -156,6 +156,31 @@ export const PaidChipText = styled.Text<{ paid: boolean }>`
   font-weight: 800;
 `;
 
+type DeckTone = 'gold' | 'positive' | 'negative' | 'muted';
+const deckColor = (tone: DeckTone) =>
+  tone === 'gold'
+    ? colors.gold.main
+    : tone === 'positive'
+    ? colors.feedback.positive
+    : tone === 'negative'
+    ? colors.feedback.negative
+    : colors.text.secondary;
+
+export const DeckChip = styled.Pressable`
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  padding: ${spacing.xs}px ${spacing.sm}px;
+  border-radius: ${radius.pill}px;
+  background-color: ${colors.surfaceRaised};
+`;
+
+export const DeckChipText = styled.Text<{ tone: DeckTone }>`
+  color: ${({ tone }) => deckColor(tone)};
+  font-size: ${fontSize.caption}px;
+  font-weight: 800;
+`;
+
 export const Footer = styled.View`
   padding: ${spacing.lg}px ${spacing.xl}px;
   gap: ${spacing.sm}px;

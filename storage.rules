@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Só os prints de deck dos torneios (functions/src/decks.ts). O app grava o
+// organizador nos metadados do arquivo; assim ele pode ler sem o Storage
+// consultar o Firestore. Quem mentir ali só esconde o próprio deck.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /decks/{tournamentId}/{uid}/{file} {
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 3 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.metadata.organizerUid is string;
+      allow read: if request.auth != null
+        && (request.auth.uid == uid
+          || request.auth.uid == resource.metadata.organizerUid);
+    }
+  }
+}

@@ -42,6 +42,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Para enviar o print do seu deck nos torneios.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>A câmera é usada para ler o QR code dos desafios.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
