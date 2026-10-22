@@ -157,8 +157,10 @@ export const createTournament = onCall(async request => {
       'invalid-argument',
       'Informe a chave Pix para a inscrição paga.',
     );
+  // 'manual': o organizador inicia cada rodada e marca o prazo (data e hora).
+  const roundMode = d.roundMode === 'manual' ? 'manual' : 'auto';
   const roundMinutes =
-    d.roundMinutes == null
+    roundMode === 'manual' || d.roundMinutes == null
       ? null
       : intIn(d.roundMinutes, 10, 60 * 24 * 30, 'Prazo da rodada inválido.');
 
@@ -211,6 +213,7 @@ export const createTournament = onCall(async request => {
       starsEntry,
       minStars,
       maxPlayers,
+      roundMode,
       roundMinutes,
       startsAt: noDate ? null : Timestamp.fromMillis(startsAtMs),
       code: randomCode(),
@@ -563,11 +566,22 @@ function createMatchDuel(
   t: DocumentData,
   match: { id: string; round: number; stage: Stage; label: string },
   players: [string, string],
+  // Rodada manual: prazo marcado pelo organizador (null = sem prazo).
+  deadlineMs?: number | null,
 ): string {
   const duelRef = duels.doc();
-  const deadline = t.roundMinutes
-    ? Timestamp.fromMillis(Date.now() + t.roundMinutes * 60 * 1000)
-    : null;
+  const deadlineAt =
+    deadlineMs !== undefined
+      ? deadlineMs
+      : t.roundMinutes
+      ? Date.now() + t.roundMinutes * 60 * 1000
+      : null;
+  const deadline = deadlineAt ? Timestamp.fromMillis(deadlineAt) : null;
+  // O lembrete de prazo usa a duração da rodada.
+  const roundMinutes =
+    deadlineMs !== undefined
+      ? deadlineMs && Math.round((deadlineMs - Date.now()) / 60000)
+      : t.roundMinutes ?? null;
   tx.create(duelRef, {
     players,
     stake: 0,
@@ -584,9 +598,29 @@ function createMatchDuel(
     round: match.round,
     roundLabel: match.label,
     deadlineAt: deadline,
-    roundMinutes: t.roundMinutes ?? null,
+    roundMinutes,
   });
   return duelRef.id;
+}
+
+const manualRounds = (t: DocumentData) => t.roundMode === 'manual';
+
+// Partida com os dois jogadores: no modo automático o duelo já começa; no
+// manual fica 'ready' (confronto visível) até o organizador iniciar a rodada.
+function openMatch(
+  tx: Transaction,
+  tRef: DocumentReference,
+  t: DocumentData,
+  match: { id: string; round: number; stage: Stage; label: string },
+  players: [string, string],
+): { status: 'active' | 'ready'; duelId: string | null; created?: Created } {
+  if (manualRounds(t)) return { status: 'ready', duelId: null };
+  const duelId = createMatchDuel(tx, tRef, t, match, players);
+  return {
+    status: 'active',
+    duelId,
+    created: { label: match.label, players, duelId },
+  };
 }
 
 async function notifyMatch(t: DocumentData, m: Created) {
@@ -645,15 +679,20 @@ function createBracket(
     };
     if (b) {
       const label = roundLabel(1, rounds);
-      const duelId = createMatchDuel(
+      const opened = openMatch(
         tx,
         tRef,
         t,
         { id, round: 1, stage: 'top', label },
         [a, b],
       );
-      tx.create(ref, { ...base, players: [a, b], status: 'active', duelId });
-      created.push({ label, players: [a, b], duelId });
+      tx.create(ref, {
+        ...base,
+        players: [a, b],
+        status: opened.status,
+        duelId: opened.duelId,
+      });
+      if (opened.created) created.push(opened.created);
     } else {
       tx.create(ref, {
         ...base,
@@ -754,7 +793,7 @@ function createSwissRound(
   const created: Created[] = [];
   pairs.forEach((pair, table) => {
     const id = swissId(round, table);
-    const duelId = createMatchDuel(
+    const opened = openMatch(
       tx,
       tRef,
       t,
@@ -766,12 +805,12 @@ function createSwissRound(
       slot: table,
       stage: 'swiss',
       players: pair,
-      status: 'active',
-      duelId,
+      status: opened.status,
+      duelId: opened.duelId,
       winnerUid: null,
       result: null,
     });
-    created.push({ label, players: pair, duelId });
+    if (opened.created) created.push(opened.created);
   });
   if (bye) {
     tx.create(tRef.collection('matches').doc(swissId(round, pairs.length)), {
@@ -865,6 +904,9 @@ export const startTournament = onCall(async request => {
       playerUids: uids,
       playerCount: uids.length,
       startedAt: FieldValue.serverTimestamp(),
+      // Manual: confrontos prontos, esperando o organizador iniciar a rodada.
+      roundPhase: manualRounds(t) ? 'ready' : null,
+      roundDeadlineAt: null,
     };
 
     if (t.format === 'swiss') {
@@ -967,17 +1009,22 @@ async function settleBracketMatch(
     if (present.length === 2) {
       const pair = present as [string, string];
       const label = roundLabel(nextRound, t.rounds);
-      const duelId = createMatchDuel(
+      const opened = openMatch(
         tx,
         tRef,
         t,
         { id: nextId, round: nextRound, stage: 'top', label },
         pair,
       );
-      tx.set(nextRef, { ...base, players: pair, status: 'active', duelId });
+      tx.set(nextRef, {
+        ...base,
+        players: pair,
+        status: opened.status,
+        duelId: opened.duelId,
+      });
       if (nextRound > (t.currentRound ?? 1))
         tx.update(tRef, { currentRound: nextRound });
-      return { created: [{ label, players: pair, duelId }], t };
+      return { created: opened.created ? [opened.created] : [], t };
     }
     // Um lado vazio (derrota dupla antes): quem sobrou passa direto.
     tx.set(nextRef, {
@@ -1284,8 +1331,278 @@ export const onTournamentDuelEnded = onDocumentUpdated(
       winner,
       winner ? 'win' : 'double_loss',
     );
+    await markRoundReady(tRef);
   },
 );
+
+// --- Rodadas manuais -------------------------------------------------------
+//
+// No modo manual (roundMode 'manual') as partidas nascem 'ready', sem duelo.
+// Quando nenhuma está em jogo e há confrontos prontos, a rodada fica
+// 'ready' e o organizador é avisado. Ele inicia com um prazo (data e hora,
+// ou sem prazo) e um aviso, que vai por push pra todos e fica fixo na tela
+// do torneio - o "canal de avisos" dentro do app.
+
+const MIN_DEADLINE_MS = 10 * 60 * 1000;
+const MAX_DEADLINE_MS = 60 * 24 * 60 * 60 * 1000;
+const NOTICE_MAX = 280;
+
+// "quarta-feira, 29/10 às 22:00" (horário de Brasília).
+export function formatDeadline(ms: number): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+      .formatToParts(new Date(ms))
+      .map(part => [part.type, part.value]),
+  );
+  return `${parts.weekday}, ${parts.day}/${parts.month} às ${parts.hour}:${parts.minute}`;
+}
+
+function readDeadline(value: unknown): number | null {
+  if (value == null) return null;
+  const ms = Number(value);
+  const now = Date.now();
+  if (!Number.isFinite(ms) || ms < now + MIN_DEADLINE_MS)
+    throw new HttpsError(
+      'invalid-argument',
+      'O prazo precisa ser pelo menos 10 minutos a partir de agora.',
+    );
+  if (ms > now + MAX_DEADLINE_MS)
+    throw new HttpsError(
+      'invalid-argument',
+      'O prazo pode ser de até 60 dias.',
+    );
+  return ms;
+}
+
+const matchLabel = (t: DocumentData, m: DocumentData) =>
+  m.stage === 'swiss'
+    ? swissLabel(m.round, t.swissRounds)
+    : roundLabel(m.round, t.rounds);
+
+function requireOrganizer(t: DocumentData | undefined, uid: string) {
+  if (!t) throw new HttpsError('not-found', 'Torneio não encontrado.');
+  if (t.organizerUid !== uid)
+    throw new HttpsError(
+      'permission-denied',
+      'Só o organizador pode fazer isso.',
+    );
+  return t;
+}
+
+async function markRoundReady(tRef: DocumentReference) {
+  const t = await db.runTransaction(async tx => {
+    const data = (await tx.get(tRef)).data();
+    if (
+      !data ||
+      !manualRounds(data) ||
+      data.status !== 'running' ||
+      data.roundPhase !== 'playing'
+    )
+      return null;
+    const matches = tRef.collection('matches');
+    const [active, ready] = await Promise.all([
+      tx.get(matches.where('status', '==', 'active').limit(1)),
+      tx.get(matches.where('status', '==', 'ready').limit(1)),
+    ]);
+    if (!active.empty || ready.empty) return null;
+    tx.update(tRef, { roundPhase: 'ready', roundDeadlineAt: null });
+    return {
+      name: data.name as string,
+      organizerUid: data.organizerUid as string,
+      next: matchLabel(data, ready.docs[0].data()),
+    };
+  });
+  if (!t) return;
+  await notifyUser(t.organizerUid, {
+    title: `${t.name}: ${t.next} pronta`,
+    body: 'Todas as partidas terminaram. Inicie a próxima rodada quando quiser.',
+    link: `/tournament/${tRef.id}`,
+  });
+}
+
+// Quem recebe os avisos: no suíço todos seguem jogando; no mata-mata, só
+// quem ainda está na chave (os das partidas desta rodada).
+const noticeTargets = (t: DocumentData, matchPlayers: string[]) =>
+  t.stage === 'swiss' ? (t.playerUids as string[]) : matchPlayers;
+
+export const startTournamentRound = onCall(async request => {
+  const uid = requireAuth(request.auth?.uid);
+  const tRef = tournaments.doc(String(request.data?.id ?? ''));
+  const deadlineMs = readDeadline(request.data?.deadlineAt);
+  const message = text(request.data?.message, NOTICE_MAX);
+
+  const started = await db.runTransaction(async tx => {
+    const t = requireOrganizer((await tx.get(tRef)).data(), uid);
+    if (t.status !== 'running' || !manualRounds(t) || t.roundPhase !== 'ready')
+      throw new HttpsError(
+        'failed-precondition',
+        'Não há rodada pronta para iniciar.',
+      );
+    const matches = tRef.collection('matches');
+    const [active, ready] = await Promise.all([
+      tx.get(matches.where('status', '==', 'active').limit(1)),
+      tx.get(matches.where('status', '==', 'ready')),
+    ]);
+    if (!active.empty || ready.empty)
+      throw new HttpsError(
+        'failed-precondition',
+        'Ainda há partidas da rodada anterior em jogo.',
+      );
+    const created: Created[] = [];
+    for (const doc of ready.docs) {
+      const m = doc.data();
+      const label = matchLabel(t, m);
+      const players = m.players as [string, string];
+      const duelId = createMatchDuel(
+        tx,
+        tRef,
+        t,
+        { id: doc.id, round: m.round, stage: m.stage, label },
+        players,
+        deadlineMs,
+      );
+      tx.update(doc.ref, { status: 'active', duelId });
+      created.push({ label, players, duelId });
+    }
+    const label = created[0].label;
+    tx.update(tRef, {
+      roundPhase: 'playing',
+      roundLabel: label,
+      roundDeadlineAt: deadlineMs ? Timestamp.fromMillis(deadlineMs) : null,
+      notice: message
+        ? { text: message, at: FieldValue.serverTimestamp() }
+        : null,
+    });
+    return { t, created, label };
+  });
+
+  const { t, created, label } = started;
+  const deadline = deadlineMs
+    ? `Prazo: ${formatDeadline(deadlineMs)}.`
+    : 'Sem prazo.';
+  const nicks = new Map<string, string>();
+  const matchPlayers = created.flatMap(m => m.players);
+  await Promise.all(
+    matchPlayers.map(async p =>
+      nicks.set(p, (await users.doc(p).get()).get('nick') ?? '...'),
+    ),
+  );
+  const matchOf = new Map(
+    created.flatMap(m => m.players.map(p => [p, m] as const)),
+  );
+  await Promise.all(
+    noticeTargets(t, matchPlayers).map(player => {
+      const m = matchOf.get(player);
+      const opponent = m?.players.find(p => p !== player);
+      return notifyUser(player, {
+        title: `${t.name}: ${label} começou`,
+        body: [
+          message,
+          opponent
+            ? `Você enfrenta @${nicks.get(opponent)}.`
+            : 'Você está de folga (bye) nesta rodada.',
+          message ? '' : deadline,
+        ]
+          .filter(Boolean)
+          .join(' '),
+        link: m ? `/duel/${m.duelId}` : `/tournament/${tRef.id}`,
+      });
+    }),
+  );
+  return { ok: true };
+});
+
+// Muda o prazo da rodada em jogo (estender quando alguém pede mais um dia).
+export const setTournamentRoundDeadline = onCall(async request => {
+  const uid = requireAuth(request.auth?.uid);
+  const tRef = tournaments.doc(String(request.data?.id ?? ''));
+  const deadlineMs = readDeadline(request.data?.deadlineAt);
+
+  const out = await db.runTransaction(async tx => {
+    const t = requireOrganizer((await tx.get(tRef)).data(), uid);
+    if (t.status !== 'running' || t.roundPhase !== 'playing')
+      throw new HttpsError(
+        'failed-precondition',
+        'Não há rodada em jogo agora.',
+      );
+    const active = await tx.get(
+      tRef.collection('matches').where('status', '==', 'active'),
+    );
+    const roundMinutes =
+      deadlineMs && Math.round((deadlineMs - Date.now()) / 60000);
+    for (const doc of active.docs) {
+      const duelId = doc.get('duelId');
+      if (!duelId) continue;
+      tx.update(duels.doc(duelId), {
+        deadlineAt: deadlineMs ? Timestamp.fromMillis(deadlineMs) : null,
+        roundMinutes,
+        reminderSent: false,
+      });
+    }
+    tx.update(tRef, {
+      roundDeadlineAt: deadlineMs ? Timestamp.fromMillis(deadlineMs) : null,
+    });
+    return {
+      t,
+      players: active.docs.flatMap(d => d.get('players') as string[]),
+    };
+  });
+
+  await Promise.all(
+    noticeTargets(out.t, out.players).map(player =>
+      notifyUser(player, {
+        title: `${out.t.name}: prazo alterado`,
+        body: deadlineMs
+          ? `${out.t.roundLabel ?? 'A rodada'} agora vai até ${formatDeadline(
+              deadlineMs,
+            )}.`
+          : `${out.t.roundLabel ?? 'A rodada'} agora está sem prazo.`,
+        link: `/tournament/${tRef.id}`,
+      }),
+    ),
+  );
+  return { ok: true };
+});
+
+// Aviso livre do organizador: fica fixo na tela e vai por push pros inscritos.
+export const postTournamentNotice = onCall(async request => {
+  const uid = requireAuth(request.auth?.uid);
+  const tRef = tournaments.doc(String(request.data?.id ?? ''));
+  const message = text(request.data?.message, NOTICE_MAX);
+  if (message.length < 3)
+    throw new HttpsError('invalid-argument', 'Escreva o aviso.');
+
+  const t = await db.runTransaction(async tx => {
+    const data = requireOrganizer((await tx.get(tRef)).data(), uid);
+    if (!ACTIVE.includes(data.status))
+      throw new HttpsError('failed-precondition', 'O torneio já terminou.');
+    tx.update(tRef, {
+      notice: { text: message, at: FieldValue.serverTimestamp() },
+    });
+    return data;
+  });
+
+  await Promise.all(
+    (t.playerUids as string[])
+      .filter(player => player !== uid)
+      .map(player =>
+        notifyUser(player, {
+          title: `${t.name}: aviso do organizador`,
+          body: message,
+          link: `/tournament/${tRef.id}`,
+        }),
+      ),
+  );
+  return { ok: true };
+});
 
 // Organizador destrava uma partida parada: dá a vitória a um lado (W.O.) ou
 // derrota dupla. O trigger acima avança o torneio.

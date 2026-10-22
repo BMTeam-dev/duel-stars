@@ -18,6 +18,7 @@ import {
 import {
   MAX_STARS_ENTRY,
   ROUND_DEADLINES,
+  RoundMode,
   TOURNAMENT_FORMAT_LABEL,
   TournamentFormat,
 } from '../../../../services/tournaments/tournaments.types';
@@ -27,11 +28,14 @@ import { TextField } from '../../../../shared/ui/TextField';
 import { toast } from '../../../../shared/ui/toast';
 import { OptionChips } from '../../components/OptionChips';
 import { Footer, Hint, Label, Row, RowItem, Screen, Section } from './styles';
-import { parseStart, maskDate, maskTime, parseMoney } from './parse';
+import { parseStart, maskDate, maskTime, parseMoney } from '../../parse';
 
 // Padrão do prazo da rodada: presencial acaba no dia; online pode levar semanas.
 const defaultDeadline = (category: Category) =>
   category === 'tcg' ? 50 : 60 * 24 * 7;
+// Online (DL/MD) costuma ter rodadas de dias, com aviso do organizador.
+const defaultRoundMode = (category: Category): RoundMode =>
+  category === 'tcg' ? 'auto' : 'manual';
 
 function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
   const { category: activeCategory } = useActiveCategory();
@@ -49,6 +53,10 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
     defaultDeadline(activeCategory),
   );
   const [deadlineTouched, setDeadlineTouched] = useState(false);
+  const [roundMode, setRoundMode] = useState<RoundMode>(
+    defaultRoundMode(activeCategory),
+  );
+  const [modeTouched, setModeTouched] = useState(false);
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [password, setPassword] = useState('');
   const [listed, setListed] = useState(true);
@@ -63,6 +71,7 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
   const changeCategory = (next: Category) => {
     setCategory(next);
     if (!deadlineTouched) setRoundMinutes(defaultDeadline(next));
+    if (!modeTouched) setRoundMode(defaultRoundMode(next));
   };
 
   const startsAt = parseStart(date, time);
@@ -102,7 +111,8 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
         starsEntry,
         minStars: Number(minStars) > 0 ? Number(minStars) : null,
         maxPlayers,
-        roundMinutes,
+        roundMode,
+        roundMinutes: roundMode === 'manual' ? null : roundMinutes,
         startsAt: scheduled ? startsAt : null,
       });
       // Organizador que joga entra pela inscrição normal (mesmas regras de
@@ -274,24 +284,46 @@ function CreateTournamentScreen({ navigation }: CreateTournamentProps) {
           </Section>
 
           <Section>
-            <Label>Prazo da rodada</Label>
-            <OptionChips<number | null>
-              options={ROUND_DEADLINES.map(o => ({
-                value: o.minutes,
-                label: o.label,
-              }))}
-              value={roundMinutes}
+            <Label>Rodadas</Label>
+            <OptionChips<RoundMode>
+              options={[
+                { value: 'manual', label: 'Eu inicio cada uma' },
+                { value: 'auto', label: 'Automáticas' },
+              ]}
+              value={roundMode}
               onChange={value => {
-                setDeadlineTouched(true);
-                setRoundMinutes(value);
+                setModeTouched(true);
+                setRoundMode(value);
               }}
             />
             <Hint>
-              {roundMinutes === null
-                ? 'A rodada só avança quando todas as partidas tiverem resultado; você pode destravar partidas paradas.'
-                : 'Partida sem resultado no fim do prazo é derrota dupla.'}
+              {roundMode === 'manual'
+                ? 'Os confrontos aparecem e esperam você. Ao iniciar cada rodada, você marca até quando ela vai (dia e hora) e escreve o aviso, que chega por notificação para todos.'
+                : 'Cada rodada começa sozinha assim que a anterior termina, com a duração escolhida abaixo.'}
             </Hint>
           </Section>
+
+          {roundMode === 'auto' && (
+            <Section>
+              <Label>Prazo da rodada</Label>
+              <OptionChips<number | null>
+                options={ROUND_DEADLINES.map(o => ({
+                  value: o.minutes,
+                  label: o.label,
+                }))}
+                value={roundMinutes}
+                onChange={value => {
+                  setDeadlineTouched(true);
+                  setRoundMinutes(value);
+                }}
+              />
+              <Hint>
+                {roundMinutes === null
+                  ? 'A rodada só avança quando todas as partidas tiverem resultado; você pode destravar partidas paradas.'
+                  : 'Partida sem resultado no fim do prazo é derrota dupla.'}
+              </Hint>
+            </Section>
+          )}
 
           <Section>
             <Label>Visibilidade</Label>

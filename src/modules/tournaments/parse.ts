@@ -1,8 +1,14 @@
 // Máscaras e leitura dos campos do formulário de criação.
 const digits = (value: string) => value.replace(/\D/g, '');
 
-export const maskDate = (value: string) => digits(value).slice(0, 4).replace(/^(\d{2})(\d)/, '$1/$2');
-export const maskTime = (value: string) => digits(value).slice(0, 4).replace(/^(\d{2})(\d)/, '$1:$2');
+export const maskDate = (value: string) =>
+  digits(value)
+    .slice(0, 4)
+    .replace(/^(\d{2})(\d)/, '$1/$2');
+export const maskTime = (value: string) =>
+  digits(value)
+    .slice(0, 4)
+    .replace(/^(\d{2})(\d)/, '$1:$2');
 
 // "25/10" + "19:00" -> millis no fuso do aparelho. Sem ano: este ano, ou o
 // próximo se a data já passou (torneio em janeiro criado em dezembro).
@@ -26,4 +32,32 @@ export function parseMoney(value: string): number | null {
   const normalized = value.replace(/[^\d,.]/g, '').replace(',', '.');
   const n = Number(normalized);
   return normalized && Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+// Millis -> campos "DD/MM" e "HH:MM" (pros atalhos de prazo).
+export function toDateFields(ms: number): { date: string; time: string } {
+  const d = new Date(ms);
+  return {
+    date: `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
+const WEEKDAYS_LONG = [
+  'domingo',
+  'segunda-feira',
+  'terça-feira',
+  'quarta-feira',
+  'quinta-feira',
+  'sexta-feira',
+  'sábado',
+];
+
+// "quarta-feira (29/10) às 22h" / "às 22:30" - pro texto do aviso.
+export function formatDeadlineLong(ms: number): string {
+  const d = new Date(ms);
+  const hour = d.getMinutes() ? `${pad(d.getHours())}:${pad(d.getMinutes())}` : `${d.getHours()}h`;
+  return `${WEEKDAYS_LONG[d.getDay()]} (${pad(d.getDate())}/${pad(d.getMonth() + 1)}) às ${hour}`;
 }

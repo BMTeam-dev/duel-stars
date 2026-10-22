@@ -15,13 +15,7 @@ import {
 import { db } from '../firestore/db';
 import { listenerError } from '../firestore/listenerError';
 import type { Category } from '../duels/duels.types';
-import {
-  NewTournament,
-  registrationOpen,
-  Tournament,
-  TournamentMatch,
-  TournamentPlayer,
-} from './tournaments.types';
+import { NewTournament, registrationOpen, Tournament, TournamentMatch, TournamentPlayer } from './tournaments.types';
 
 const functions = getFunctions(getApp(), 'southamerica-east1');
 
@@ -29,8 +23,7 @@ async function call<Req, Res>(name: string, data: Req): Promise<Res> {
   return (await httpsCallable<Req, Res>(functions, name)(data)).data;
 }
 
-export const createTournament = (data: NewTournament) =>
-  call<NewTournament, { id: string }>('createTournament', data);
+export const createTournament = (data: NewTournament) => call<NewTournament, { id: string }>('createTournament', data);
 export const joinTournament = (id: string, password?: string) => call('joinTournament', { id, password });
 export const leaveTournament = (id: string) => call('leaveTournament', { id });
 export const cancelTournament = (id: string) => call('cancelTournament', { id });
@@ -40,12 +33,18 @@ export const startTournament = (id: string) => call('startTournament', { id });
 // winnerUid null = derrota dupla.
 export const resolveMatch = (id: string, matchId: string, winnerUid: string | null) =>
   call('resolveTournamentMatch', { id, matchId, winnerUid });
+// Rodadas manuais. deadlineAt em millis; null = sem prazo.
+export const startRound = (id: string, deadlineAt: number | null, message: string) =>
+  call('startTournamentRound', { id, deadlineAt, message });
+export const setRoundDeadline = (id: string, deadlineAt: number | null) =>
+  call('setTournamentRoundDeadline', { id, deadlineAt });
+export const postNotice = (id: string, message: string) => call('postTournamentNotice', { id, message });
 export const setPlayerPaid = (id: string, playerUid: string, paid: boolean) =>
   call('setTournamentPlayerPaid', { id, playerUid, paid });
 
 // O backend manda `details.needsGameId` quando falta o ID do jogo no perfil.
 export function needsGameId(error: unknown): 'md' | 'dl' | null {
-  return ((error as { details?: { needsGameId?: 'md' | 'dl' } })?.details?.needsGameId) ?? null;
+  return (error as { details?: { needsGameId?: 'md' | 'dl' } })?.details?.needsGameId ?? null;
 }
 
 const millis = (value: unknown) => (value as { toMillis?: () => number })?.toMillis?.() ?? null;
@@ -66,7 +65,12 @@ function toTournament(id: string, data: DocumentData): Tournament {
     starsEntry: data.starsEntry ?? 0,
     minStars: data.minStars ?? null,
     maxPlayers: data.maxPlayers,
+    roundMode: data.roundMode === 'manual' ? 'manual' : 'auto',
     roundMinutes: data.roundMinutes ?? null,
+    roundPhase: data.roundPhase ?? null,
+    roundLabel: data.roundLabel ?? null,
+    roundDeadlineAt: millis(data.roundDeadlineAt),
+    notice: data.notice?.text ? { text: data.notice.text, at: millis(data.notice.at) } : null,
     startsAt: millis(data.startsAt),
     code: data.code,
     organizerUid: data.organizerUid,
@@ -164,10 +168,7 @@ export function subscribeTournament(id: string, onChange: (t: Tournament | null)
   );
 }
 
-export function subscribeTournamentPlayers(
-  id: string,
-  onChange: (players: TournamentPlayer[]) => void,
-): () => void {
+export function subscribeTournamentPlayers(id: string, onChange: (players: TournamentPlayer[]) => void): () => void {
   return onSnapshot(
     query(collection(db, 'tournaments', id, 'players'), orderBy('joinedAt', 'asc')),
     snapshot =>
@@ -198,7 +199,10 @@ export async function findTournamentByCode(code: string): Promise<string | null>
 }
 
 export function normalizeTournamentCode(value: string): string {
-  return value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6);
+  return value
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 6);
 }
 
 // Chave inteira (no máximo 63 partidas): ordenada por rodada e posição.
@@ -224,7 +228,9 @@ export function subscribeMatches(id: string, onChange: (matches: TournamentMatch
             };
           })
           // Suíço antes do mata-mata; dentro de cada fase, rodada e mesa.
-          .sort((a, b) => (a.stage === b.stage ? 0 : a.stage === 'swiss' ? -1 : 1) || a.round - b.round || a.slot - b.slot),
+          .sort(
+            (a, b) => (a.stage === b.stage ? 0 : a.stage === 'swiss' ? -1 : 1) || a.round - b.round || a.slot - b.slot,
+          ),
       ),
     listenerError('subscribeMatches'),
   );

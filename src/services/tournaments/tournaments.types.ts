@@ -3,6 +3,8 @@ import type { Category, DuelFormat } from '../duels/duels.types';
 // Formato como o app usa (datas em millis). No Firestore: tournaments/{id},
 // escrito só pelas Cloud Functions (functions/src/tournaments.ts).
 export type TournamentFormat = 'swiss' | 'single';
+// 'manual': o organizador inicia cada rodada com prazo (data e hora) e aviso.
+export type RoundMode = 'auto' | 'manual';
 export type TournamentStatus = 'open' | 'checkin' | 'running' | 'finished' | 'cancelled';
 
 export type Tournament = {
@@ -20,8 +22,16 @@ export type Tournament = {
   starsEntry: number;
   minStars: number | null;
   maxPlayers: number;
-  // null = sem prazo (o organizador avança as rodadas).
+  roundMode: RoundMode;
+  // Modo automático: duração de cada rodada. null = sem prazo.
   roundMinutes: number | null;
+  // Modo manual: 'ready' = confrontos prontos esperando o organizador;
+  // 'playing' = rodada em jogo até roundDeadlineAt (null = sem prazo).
+  roundPhase: 'ready' | 'playing' | null;
+  roundLabel: string | null;
+  roundDeadlineAt: number | null;
+  // Aviso fixo do organizador (o da rodada ou um avulso).
+  notice: { text: string; at: number | null } | null;
   // null = sem data: começa quando o organizador abrir o check-in e iniciar.
   startsAt: number | null;
   code: string;
@@ -52,7 +62,8 @@ export type TournamentMatch = {
   round: number;
   slot: number;
   players: (string | null)[];
-  status: 'pending' | 'active' | 'done';
+  // 'ready': confronto definido, esperando o organizador iniciar a rodada.
+  status: 'pending' | 'ready' | 'active' | 'done';
   // Estado do duelo enquanto a partida está em jogo.
   duelStatus: 'active' | 'awaiting' | 'disputed' | null;
   duelId: string | null;
@@ -96,6 +107,7 @@ export type NewTournament = {
   starsEntry: number;
   minStars: number | null;
   maxPlayers: number;
+  roundMode: RoundMode;
   roundMinutes: number | null;
   startsAt: number | null;
 };
@@ -135,8 +147,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 export const notStarted = (t: Tournament) => t.status === 'open' || t.status === 'checkin';
 
 // Inscrições: com data, até o horário; sem data, até o organizador iniciar.
-export const registrationOpen = (t: Tournament) =>
-  notStarted(t) && (t.startsAt === null || t.startsAt > Date.now());
+export const registrationOpen = (t: Tournament) => notStarted(t) && (t.startsAt === null || t.startsAt > Date.now());
 
 // Check-in: com data, 30 min antes; sem data, quando o organizador abre.
 export const checkinIsOpen = (t: Tournament) =>

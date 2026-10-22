@@ -22,8 +22,11 @@ import {
   joinTournament,
   leaveTournament,
   needsGameId,
+  postNotice,
   resolveMatch,
+  setRoundDeadline,
   setPlayerPaid,
+  startRound,
   startTournament,
   subscribeMatches,
   subscribeTournament,
@@ -44,6 +47,8 @@ import {
   TournamentPlayer,
 } from '../../../../services/tournaments/tournaments.types';
 import { MatchRow } from '../../components/MatchRow';
+import { RoundPanel } from '../../components/RoundPanel';
+import { RoundSheet, RoundSheetMode } from '../../components/RoundSheet';
 import { AppSheet } from '../../../../shared/ui/AppSheet';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Button } from '../../../../shared/ui/Button';
@@ -131,6 +136,8 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   const [tab, setTab] = useState<Tab | null>(null);
   const passwordSheetRef = useRef<BottomSheetModal>(null);
   const resolveSheetRef = useRef<BottomSheetModal>(null);
+  const roundSheetRef = useRef<BottomSheetModal>(null);
+  const [roundSheetMode, setRoundSheetMode] = useState<RoundSheetMode>('start');
 
   useEffect(() => subscribeTournament(tournamentId, setT), [tournamentId]);
   useEffect(
@@ -187,7 +194,9 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   const me = players.find(p => p.uid === uid);
   const checkedInCount = players.filter(p => p.checkedIn).length;
   const myMatch = matches.find(
-    m => m.status === 'active' && m.players.includes(uid),
+    m =>
+      (m.status === 'active' || m.status === 'ready') &&
+      m.players.includes(uid),
   );
   const rounds = t.rounds ?? 0;
   const full = t.playerCount >= t.maxPlayers;
@@ -293,7 +302,12 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
       `${TOURNAMENT_FORMAT_LABEL[t.format]} · ${FORMAT_LABEL[t.matchFormat]}`,
     ],
     ['Vagas', `${t.playerCount} de ${t.maxPlayers}`],
-    ['Prazo da rodada', roundDeadlineLabel(t.roundMinutes)],
+    [
+      'Rodadas',
+      t.roundMode === 'manual'
+        ? 'O organizador inicia cada uma, com prazo'
+        : `Automáticas · ${roundDeadlineLabel(t.roundMinutes)}`,
+    ],
     ['Inscrição', t.entryFeeCents ? formatMoney(t.entryFeeCents) : 'Grátis'],
   ];
   if (t.starsEntry)
@@ -354,6 +368,16 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
         />
       </>
     );
+  } else if (myMatch?.status === 'ready') {
+    footer = (
+      <Button
+        label="Sua partida começa quando o organizador iniciar a rodada"
+        icon="timer-sand"
+        variant="secondary"
+        disabled
+        onPress={() => undefined}
+      />
+    );
   } else if (myMatch?.duelId) {
     footer = (
       <Button
@@ -411,6 +435,27 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     );
   };
 
+  const openRoundSheet = (mode: RoundSheetMode) => {
+    setRoundSheetMode(mode);
+    roundSheetRef.current?.present();
+  };
+
+  const submitRound = async (deadlineAt: number | null, message: string) => {
+    const done =
+      roundSheetMode === 'start'
+        ? await run(
+            () => startRound(t.id, deadlineAt, message),
+            'Rodada iniciada e jogadores avisados',
+          )
+        : roundSheetMode === 'deadline'
+        ? await run(
+            () => setRoundDeadline(t.id, deadlineAt),
+            'Prazo alterado e jogadores avisados',
+          )
+        : await run(() => postNotice(t.id, message), 'Aviso publicado');
+    if (done) roundSheetRef.current?.dismiss();
+  };
+
   // Grupos na ordem da chave: rodadas do suíço, depois as do mata-mata.
   const groups = [...new Set(matches.map(m => `${m.stage}-${m.round}`))].map(
     key => {
@@ -428,6 +473,9 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   );
   // Rodada mais recente em cima: é a que interessa durante o torneio.
   groups.reverse();
+  const readyLabel =
+    groups.find(g => g.matches.some(m => m.status === 'ready'))?.title ?? null;
+  const showRoundPanel = t.status === 'running';
   const showStandings =
     t.format === 'swiss' && t.status !== 'open' && t.status !== 'cancelled';
   const currentTab: Tab =
@@ -449,7 +497,9 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
         contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
         // As abas ficam presas no topo ao rolar (índice: depois do cartão
         // do campeão, quando há, e do cartão do torneio).
-        stickyHeaderIndices={[t.status === 'finished' ? 2 : 1]}
+        stickyHeaderIndices={[
+          (t.status === 'finished' ? 2 : 1) + (showRoundPanel ? 1 : 0),
+        ]}
       >
         {t.status === 'finished' && (
           <Champion>
@@ -506,6 +556,18 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
           </Meta>
           {!!t.description && <Description>{t.description}</Description>}
         </Info>
+
+        {showRoundPanel && (
+          <RoundPanel
+            t={t}
+            isOrganizer={isOrganizer}
+            readyLabel={readyLabel}
+            busy={busy}
+            onStartRound={() => openRoundSheet('start')}
+            onChangeDeadline={() => openRoundSheet('deadline')}
+            onPostNotice={() => openRoundSheet('notice')}
+          />
+        )}
 
         <TabsBar>
           <SegmentedTabs options={tabs} value={currentTab} onChange={setTab} />
@@ -784,6 +846,18 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
           onPress={() => resolve(null)}
         />
       </AppSheet>
+
+      <RoundSheet
+        ref={roundSheetRef}
+        mode={roundSheetMode}
+        label={
+          roundSheetMode === 'start'
+            ? readyLabel ?? 'Rodada'
+            : t.roundLabel ?? 'Rodada'
+        }
+        busy={busy}
+        onSubmit={submitRound}
+      />
 
       <AppSheet ref={passwordSheetRef} title="Torneio privado">
         <TextField

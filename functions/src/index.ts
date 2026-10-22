@@ -17,6 +17,9 @@ export {
   openTournamentCheckin,
   startTournament,
   resolveTournamentMatch,
+  startTournamentRound,
+  setTournamentRoundDeadline,
+  postTournamentNotice,
   onTournamentDuelEnded,
   remindTournamentDeadlines,
 } from './tournaments';

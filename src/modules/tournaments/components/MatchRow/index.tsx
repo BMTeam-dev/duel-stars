@@ -27,6 +27,7 @@ function status(match: TournamentMatch): { text: string; tone: Tone } {
 
 function statusText(match: TournamentMatch): string {
   if (match.status === 'pending') return 'Aguardando';
+  if (match.status === 'ready') return 'Aguardando início da rodada';
   if (match.result === 'bye') return 'Passou direto';
   if (match.result === 'double_loss') return 'Derrota dupla';
   return 'Encerrada';
