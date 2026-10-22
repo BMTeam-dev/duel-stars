@@ -22,7 +22,16 @@ function fetchProfile(uid: string): Promise<PublicProfile | null> {
               stateId: data.stateId,
               gameIds: data.gameIds ?? {},
             }
-          : null;
+          : // Sem perfil = conta excluída: o histórico dos outros continua
+            // mostrando o duelo, com um nome no lugar do nick.
+            {
+              uid,
+              nick: 'conta_excluida',
+              photoUrl: null,
+              cityName: '',
+              stateId: '',
+              gameIds: {},
+            };
       })
       .catch(() => {
         cache.delete(uid);
@@ -33,7 +42,9 @@ function fetchProfile(uid: string): Promise<PublicProfile | null> {
   return pending;
 }
 
-export function usePublicProfiles(uids: string[]): Record<string, PublicProfile> {
+export function usePublicProfiles(
+  uids: string[],
+): Record<string, PublicProfile> {
   const [profiles, setProfiles] = useState<Record<string, PublicProfile>>({});
   const key = Array.from(new Set(uids)).sort().join(',');
 

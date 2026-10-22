@@ -20,3 +20,4 @@ export {
   onTournamentDuelEnded,
   remindTournamentDeadlines,
 } from './tournaments';
+export { deleteAccount } from './account';

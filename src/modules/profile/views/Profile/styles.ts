@@ -217,3 +217,22 @@ export const GameIds = styled.View`
   gap: ${spacing.sm}px;
   margin-bottom: ${spacing.xl}px;
 `;
+
+export const DeleteLink = styled.Pressable`
+  align-self: center;
+  padding: ${spacing.md}px;
+  margin-top: ${spacing.sm}px;
+`;
+
+export const DeleteLinkText = styled.Text`
+  color: ${colors.feedback.negative};
+  font-size: ${fontSize.body}px;
+  font-weight: 600;
+`;
+
+export const DeleteWarning = styled.Text`
+  color: ${colors.text.secondary};
+  font-size: ${fontSize.body}px;
+  line-height: 20px;
+  margin-bottom: ${spacing.lg}px;
+`;

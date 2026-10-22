@@ -7,10 +7,11 @@ import {
   signOut as firebaseSignOut,
   updateProfile,
   getIdToken as getFirebaseIdToken,
-  deleteUser,
   GoogleAuthProvider,
   type User,
 } from '@react-native-firebase/auth';
+import { getApp } from '@react-native-firebase/app';
+import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { crashReportingService } from '../crashReporting/crashReporting.service';
 
@@ -38,7 +39,12 @@ export type AuthUser = {
 };
 
 function toAuthUser(user: User): AuthUser {
-  return { uid: user.uid, email: user.email, name: user.displayName, photoUrl: user.photoURL };
+  return {
+    uid: user.uid,
+    email: user.email,
+    name: user.displayName,
+    photoUrl: user.photoURL,
+  };
 }
 
 export function onAuthStateChanged(
@@ -54,13 +60,22 @@ export async function signUpWithEmail(
   email: string,
   password: string,
 ): Promise<AuthUser> {
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
+  const credential = await createUserWithEmailAndPassword(
+    auth,
+    email,
+    password,
+  );
   await updateProfile(credential.user, { displayName: name });
   // Não usa toAuthUser(credential.user) aqui: updateProfile não faz o
   // onAuthStateChanged disparar de novo, então o objeto `user` em memória
   // fica com o displayName antigo (null) até a próxima sessão - usamos o
   // `name` que a gente mesmo acabou de salvar.
-  return { uid: credential.user.uid, email: credential.user.email, name, photoUrl: null };
+  return {
+    uid: credential.user.uid,
+    email: credential.user.email,
+    name,
+    photoUrl: null,
+  };
 }
 
 export async function signInWithEmail(
@@ -74,7 +89,10 @@ export async function signInWithEmail(
 // `isNewUser` vem do próprio Firebase (additionalUserInfo) - o Google não
 // tem uma tela de "cadastro" separada da de "login" como o email/senha tem
 // (é o mesmo botão pros dois casos); use isso pra contar certo na analytics.
-export async function signInWithGoogle(): Promise<{ user: AuthUser; isNewUser: boolean }> {
+export async function signInWithGoogle(): Promise<{
+  user: AuthUser;
+  isNewUser: boolean;
+}> {
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const response = await GoogleSignin.signIn();
 
@@ -95,14 +113,16 @@ export async function signOut(): Promise<void> {
   await firebaseSignOut(auth);
 }
 
-// Exclusão de conta - exigida pelas lojas (Apple e Google) se o app permite
-// criar conta. Pode falhar com `auth/requires-recent-login` se a sessão for
-// antiga (ver mapAuthError) - trate reautenticação se seu app precisar.
+// Exclusão de conta - exigida pelas lojas (Apple e Google). Quem apaga é o
+// backend (functions/src/account.ts): perfil, nick, rivais, anotações e o
+// login, com as regras de estrelas em jogo. Aqui só limpa a sessão local.
 export async function deleteAccount(): Promise<void> {
-  const user = auth.currentUser;
-  if (!user) return;
+  await httpsCallable(
+    getFunctions(getApp(), 'southamerica-east1'),
+    'deleteAccount',
+  )({});
   await GoogleSignin.signOut().catch(() => undefined);
-  await deleteUser(user);
+  await firebaseSignOut(auth).catch(() => undefined);
 }
 
 // Útil pra anexar o token num header Authorization quando chamar seu
@@ -137,7 +157,10 @@ export function mapAuthError(error: unknown): string {
       // cadastrado etc. são erro de digitação do usuário, não bug; o
       // "default" é onde erros de verdade inesperados apareceriam (ex: um
       // certificado de assinatura não registrado no Google Sign-In).
-      crashReportingService.recordError(error, 'mapAuthError - erro sem mapeamento específico');
+      crashReportingService.recordError(
+        error,
+        'mapAuthError - erro sem mapeamento específico',
+      );
       return 'Não foi possível completar a ação. Tente novamente.';
   }
 }

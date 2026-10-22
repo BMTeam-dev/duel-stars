@@ -309,10 +309,12 @@ export const joinTournament = onCall(async request => {
   return { ok: true };
 });
 
-export const leaveTournament = onCall(async request => {
-  const uid = requireAuth(request.auth?.uid);
-  const ref = tournaments.doc(String(request.data?.id ?? ''));
-
+// Sai de um torneio que ainda não começou (devolve as estrelas travadas).
+// Usado pelo botão "Sair" e pela exclusão de conta.
+export async function leaveTournamentBeforeStart(
+  ref: DocumentReference,
+  uid: string,
+) {
   await db.runTransaction(async tx => {
     const [snap, playerSnap] = await Promise.all([
       tx.get(ref),
@@ -340,8 +342,24 @@ export const leaveTournament = onCall(async request => {
       });
     }
   });
+}
+
+export const leaveTournament = onCall(async request => {
+  const uid = requireAuth(request.auth?.uid);
+  await leaveTournamentBeforeStart(
+    tournaments.doc(String(request.data?.id ?? '')),
+    uid,
+  );
   return { ok: true };
 });
+
+// Cancela um torneio que ainda não começou (exclusão de conta do organizador).
+export async function cancelTournamentBeforeStart(ref: DocumentReference) {
+  await db.runTransaction(async tx => {
+    const t = (await tx.get(ref)).data();
+    if (t && NOT_STARTED.includes(t.status)) await cancelInTx(tx, ref, t);
+  });
+}
 
 // Cancela antes do início: devolve as estrelas da inscrição de todo mundo.
 async function cancelInTx(
