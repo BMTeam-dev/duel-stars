@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { Linking, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { colors } from '../../../../configs/colors';
@@ -56,6 +56,8 @@ import {
   EditButton,
   GameIds,
   HistoryList,
+  LegalLink,
+  LegalRow,
   Identity,
   LevelText,
   Nick,
@@ -87,6 +89,8 @@ import {
 const RECENT_DUELS = 5;
 
 const DELETE_WORD = 'EXCLUIR';
+
+const SITE = 'https://duelstars.web.app';
 
 function ProfileScreen({ navigation }: ProfileProps) {
   const profile = useAppSelector(state => state.profile.profile);
@@ -352,6 +356,14 @@ function ProfileScreen({ navigation }: ProfileProps) {
         >
           <DeleteLinkText>Excluir conta</DeleteLinkText>
         </DeleteLink>
+        <LegalRow>
+          <LegalLink onPress={() => Linking.openURL(`${SITE}/privacidade`)}>
+            Política de privacidade
+          </LegalLink>
+          <LegalLink onPress={() => Linking.openURL(`${SITE}/termos`)}>
+            Termos de uso
+          </LegalLink>
+        </LegalRow>
       </ScrollView>
 
       <AppSheet

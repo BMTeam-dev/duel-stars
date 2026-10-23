@@ -230,6 +230,18 @@ export const DeleteLinkText = styled.Text`
   font-weight: 600;
 `;
 
+export const LegalRow = styled.View`
+  flex-direction: row;
+  justify-content: center;
+  gap: ${spacing.lg}px;
+`;
+
+export const LegalLink = styled.Text`
+  color: ${colors.text.secondary};
+  font-size: ${fontSize.caption}px;
+  padding: ${spacing.sm}px;
+`;
+
 export const DeleteWarning = styled.Text`
   color: ${colors.text.secondary};
   font-size: ${fontSize.body}px;

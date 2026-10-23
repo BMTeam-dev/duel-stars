@@ -18,5 +18,15 @@
   ],
   "storage": {
     "rules": "storage.rules"
+  },
+  "hosting": {
+    "site": "duelstars",
+    "public": "site",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "ignore": [
+      "firebase.json",
+      "**/.*"
+    ]
   }
 }
