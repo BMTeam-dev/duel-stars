@@ -41,6 +41,7 @@ import {
   FormatText,
   Footer,
 } from './styles';
+import { formatPlace } from '../../../../services/ibge/ibge.service';
 
 type Step = 'scanning' | 'loading' | 'preview';
 
@@ -121,7 +122,7 @@ function ScanChallengeScreen({ navigation, route }: ScanChallengeProps) {
           <Avatar name={creator.nick} photoUrl={creator.photoUrl} size={96} />
           <Nick>@{creator.nick}</Nick>
           <Meta>
-            {creator.cityName} · {creator.stateId} · {creator.wins}V {creator.losses}D
+            {formatPlace(creator.cityName, creator.stateId)} · {creator.wins}V {creator.losses}D
           </Meta>
           <Challenge>te desafiou para um duelo</Challenge>
 

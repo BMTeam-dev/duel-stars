@@ -38,6 +38,7 @@ import {
   CityButtonText,
   Footer,
 } from './styles';
+import { formatPlace } from '../../../../services/ibge/ibge.service';
 
 const GAMES: { key: keyof GameIds; label: string }[] = [
   { key: 'md', label: 'Master Duel' },
@@ -175,7 +176,7 @@ function EditProfileScreen({ navigation }: EditProfileProps) {
           <CityButton onPress={() => setPickingCity(true)}>
             <Icon name="map-marker" color={colors.gold.main} />
             <CityButtonText>
-              {city.name} · {city.stateId}
+              {formatPlace(city.name, city.stateId)}
             </CityButtonText>
             <Icon name="chevron-right" color={colors.text.muted} />
           </CityButton>

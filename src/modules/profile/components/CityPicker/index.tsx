@@ -3,7 +3,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, ScrollView } from 'react-native';
 import { colors } from '../../../../configs/colors';
 import { spacing } from '../../../../configs/theme';
-import { fetchCities, normalizeSearch, STATES } from '../../../../services/ibge/ibge.service';
+import {
+  ABROAD,
+  fetchCities,
+  normalizeSearch,
+  STATES,
+} from '../../../../services/ibge/ibge.service';
 import { City } from '../../../../services/profile/profile.types';
 import { Button } from '../../../../shared/ui/Button';
 import { Icon } from '../../../../shared/ui/Icon';
@@ -28,7 +33,10 @@ type Props = {
 // Estado primeiro, depois a cidade: a lista de um estado só (até ~850
 // cidades em MG) cabe bem numa busca local, sem baixar os 5.570 municípios.
 export function CityPicker({ selected, onSelect }: Props) {
-  const [stateId, setStateId] = useState<string | null>(selected?.stateId ?? null);
+  const [stateId, setStateId] = useState<string | null>(
+    selected ? selected.stateId || ABROAD.id : null,
+  );
+  const abroad = stateId === ABROAD.id;
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -36,7 +44,7 @@ export function CityPicker({ selected, onSelect }: Props) {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (!stateId) return;
+    if (!stateId || abroad) return;
     let cancelled = false;
     setLoading(true);
     setError(false);
@@ -47,11 +55,13 @@ export function CityPicker({ selected, onSelect }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [stateId, attempt]);
+  }, [stateId, abroad, attempt]);
 
   const filtered = useMemo(() => {
     const term = normalizeSearch(query);
-    return term ? cities.filter(city => normalizeSearch(city.name).includes(term)) : cities;
+    return term
+      ? cities.filter(city => normalizeSearch(city.name).includes(term))
+      : cities;
   }, [cities, query]);
 
   return (
@@ -77,18 +87,49 @@ export function CityPicker({ selected, onSelect }: Props) {
             <ChipText active={uf === stateId}>{uf}</ChipText>
           </Chip>
         ))}
+        <Chip
+          active={abroad}
+          onPress={() => {
+            setStateId(ABROAD.id);
+            onSelect(ABROAD);
+          }}
+        >
+          <ChipText active={abroad}>Exterior</ChipText>
+        </Chip>
       </ScrollView>
 
-      {stateId && (
+      {abroad && (
         <>
           <Spacer />
-          <TextField label="Buscar cidade" value={query} onChangeText={setQuery} autoCorrect={false} />
+          <Message>
+            Fora do Brasil? Você entra no ranking "Exterior", junto com os
+            outros jogadores de fora.
+          </Message>
+        </>
+      )}
+
+      {stateId && !abroad && (
+        <>
+          <Spacer />
+          <TextField
+            label="Buscar cidade"
+            value={query}
+            onChangeText={setQuery}
+            autoCorrect={false}
+          />
           {loading ? (
-            <ActivityIndicator color={colors.gold.main} style={{ marginTop: spacing.xl }} />
+            <ActivityIndicator
+              color={colors.gold.main}
+              style={{ marginTop: spacing.xl }}
+            />
           ) : error ? (
             <Retry>
               <Message>Não foi possível carregar as cidades.</Message>
-              <Button label="Tentar de novo" variant="secondary" onPress={() => setAttempt(n => n + 1)} />
+              <Button
+                label="Tentar de novo"
+                variant="secondary"
+                onPress={() => setAttempt(n => n + 1)}
+              />
             </Retry>
           ) : (
             <FlatList
@@ -100,11 +141,19 @@ export function CityPicker({ selected, onSelect }: Props) {
                 return (
                   <CityRow onPress={() => onSelect(item)} selected={isSelected}>
                     <CityName selected={isSelected}>{item.name}</CityName>
-                    {isSelected && <Icon name="check-circle" color={colors.gold.main} size={20} />}
+                    {isSelected && (
+                      <Icon
+                        name="check-circle"
+                        color={colors.gold.main}
+                        size={20}
+                      />
+                    )}
                   </CityRow>
                 );
               }}
-              ListEmptyComponent={<Message>Nenhuma cidade com esse nome em {stateId}.</Message>}
+              ListEmptyComponent={
+                <Message>Nenhuma cidade com esse nome em {stateId}.</Message>
+              }
             />
           )}
         </>

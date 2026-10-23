@@ -4,6 +4,7 @@ import { RankingEntry } from '../../../../services/ranking/ranking.types';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Icon } from '../../../../shared/ui/Icon';
 import { Body, Card, Meta, Nick, Position, Stars, StarsText } from './styles';
+import { formatPlace } from '../../../../services/ibge/ibge.service';
 
 type Props = {
   entry: RankingEntry;
@@ -24,7 +25,7 @@ export function RankingRow({ entry, mine, showCity }: Props) {
         </Nick>
         <Meta numberOfLines={1}>
           {entry.wins}V {entry.losses}D
-          {showCity ? ` · ${entry.cityName} · ${entry.stateId}` : ''}
+          {showCity ? ` · ${formatPlace(entry.cityName, entry.stateId)}` : ''}
         </Meta>
       </Body>
       <Stars>

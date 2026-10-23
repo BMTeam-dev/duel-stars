@@ -85,6 +85,7 @@ import {
   TopBar,
   TopTitle,
 } from './styles';
+import { formatPlace } from '../../../../services/ibge/ibge.service';
 
 const RECENT_DUELS = 5;
 
@@ -209,7 +210,7 @@ function ProfileScreen({ navigation }: ProfileProps) {
           <CityRow>
             <Icon name="map-marker" size={16} color={colors.text.secondary} />
             <CityText>
-              {profile.cityName} · {profile.stateId}
+              {formatPlace(profile.cityName, profile.stateId)}
             </CityText>
           </CityRow>
         </Identity>
