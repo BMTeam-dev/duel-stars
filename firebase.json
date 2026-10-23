@@ -28,5 +28,9 @@
       "firebase.json",
       "**/.*"
     ]
+  },
+  "react-native": {
+    "analytics_auto_collection_enabled": true,
+    "google_analytics_adid_collection_enabled": false
   }
 }
