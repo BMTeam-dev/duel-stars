@@ -9,6 +9,13 @@ type Push = {
   link: string;
 };
 
+// "/tournament/<id>/players" vai como link "/tournament/<id>" + tab
+// "players": versões antigas do app só entendem o link sem a aba.
+function toData(link: string): Record<string, string> {
+  const match = /^(\/tournament\/[^/]+)\/([a-z]+)$/.exec(link);
+  return match ? { link: match[1], tab: match[2] } : { link };
+}
+
 // Push nunca derruba a operação principal: o duelo já foi gravado, então
 // uma falha de envio só vira log.
 export async function notifyUser(uid: string, push: Push): Promise<void> {
@@ -19,7 +26,7 @@ export async function notifyUser(uid: string, push: Push): Promise<void> {
     await getMessaging().sendEachForMulticast({
       tokens,
       notification: { title: push.title, body: push.body },
-      data: { link: push.link },
+      data: toData(push.link),
       android: { priority: 'high' },
     });
   } catch (error) {

@@ -517,7 +517,7 @@ export const openTournamentCheckin = onCall(async request => {
       notifyUser(player, {
         title: `${t.name} vai começar`,
         body: 'Confirme sua presença (check-in) para entrar nas rodadas.',
-        link: `/tournament/${ref.id}`,
+        link: `/tournament/${ref.id}/info`,
       }),
     ),
   );
@@ -1443,7 +1443,7 @@ async function markRoundReady(tRef: DocumentReference) {
   await notifyUser(t.organizerUid, {
     title: `${t.name}: ${t.next} pronta`,
     body: 'Todas as partidas terminaram. Inicie a próxima rodada quando quiser.',
-    link: `/tournament/${tRef.id}`,
+    link: `/tournament/${tRef.id}/rounds`,
   });
 }
 
@@ -1532,7 +1532,7 @@ export const startTournamentRound = onCall(async request => {
         ]
           .filter(Boolean)
           .join(' '),
-        link: m ? `/duel/${m.duelId}` : `/tournament/${tRef.id}`,
+        link: m ? `/duel/${m.duelId}` : `/tournament/${tRef.id}/rounds`,
       });
     }),
   );
@@ -1584,7 +1584,7 @@ export const setTournamentRoundDeadline = onCall(async request => {
               deadlineMs,
             )}.`
           : `${out.t.roundLabel ?? 'A rodada'} agora está sem prazo.`,
-        link: `/tournament/${tRef.id}`,
+        link: `/tournament/${tRef.id}/rounds`,
       }),
     ),
   );
@@ -1616,7 +1616,7 @@ export const postTournamentNotice = onCall(async request => {
         notifyUser(player, {
           title: `${t.name}: aviso do organizador`,
           body: message,
-          link: `/tournament/${tRef.id}`,
+          link: `/tournament/${tRef.id}/rounds`,
         }),
       ),
   );

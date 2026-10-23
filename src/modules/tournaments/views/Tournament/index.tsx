@@ -6,6 +6,7 @@ import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { colors } from '../../../../configs/colors';
 import { spacing } from '../../../../configs/theme';
 import { TournamentProps } from '../../../../navigation/props';
+import { TournamentTab } from '../../../../navigation/screensTypes';
 import { useAppSelector } from '../../../../redux/store';
 import { duelErrorMessage } from '../../../../services/duels/duels.service';
 import {
@@ -102,7 +103,7 @@ import {
   StatusText,
 } from './styles';
 
-type Tab = 'info' | 'players' | 'rounds' | 'standings';
+type Tab = TournamentTab;
 
 // Abre onde importa agora: inscrições -> Info; em jogo -> Rodadas; suíço
 // encerrado -> Classificação.
@@ -127,7 +128,7 @@ function copy(value: string, what: string) {
 }
 
 function TournamentScreen({ navigation, route }: TournamentProps) {
-  const { tournamentId } = route.params;
+  const { tournamentId, tab: linkedTab } = route.params;
   const uid = useAppSelector(state => state.profile.profile?.uid) ?? '';
   const { showDialog } = useDialog();
   const [t, setT] = useState<Tournament | null | undefined>(undefined);
@@ -138,7 +139,11 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [resolving, setResolving] = useState<TournamentMatch | null>(null);
   // null = aba padrão do momento do torneio (ver defaultTab).
-  const [tab, setTab] = useState<Tab | null>(null);
+  const [tab, setTab] = useState<Tab | null>(linkedTab ?? null);
+  // Notificação tocada com a tela já aberta: só troca os params.
+  useEffect(() => {
+    if (linkedTab) setTab(linkedTab);
+  }, [linkedTab, tournamentId]);
   const passwordSheetRef = useRef<BottomSheetModal>(null);
   const resolveSheetRef = useRef<BottomSheetModal>(null);
   const roundSheetRef = useRef<BottomSheetModal>(null);

@@ -20,9 +20,12 @@ export type ScreensTypes = {
   EditProfile: undefined;
   DuelHistory: undefined;
   CreateTournament: undefined;
-  Tournament: { tournamentId: string };
+  // tab: aba para abrir direto (ex.: notificação de deck -> Jogadores).
+  Tournament: { tournamentId: string; tab?: TournamentTab };
   CreateChallenge: undefined;
   // 'code': só o campo do código, sem câmera (categorias online).
   ScanChallenge: { mode?: 'camera' | 'code' } | undefined;
   Duel: { duelId: string };
 };
+
+export type TournamentTab = 'info' | 'players' | 'rounds' | 'standings';

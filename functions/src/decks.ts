@@ -85,7 +85,7 @@ export const submitTournamentDeck = onCall(async request => {
     await notifyUser(out.t.organizerUid, {
       title: `${out.t.name}: deck para analisar`,
       body: `@${nick ?? 'jogador'} enviou o print do deck.`,
-      link: `/tournament/${ref.id}`,
+      link: `/tournament/${ref.id}/players`,
     });
   }
   return { ok: true };
@@ -132,7 +132,7 @@ export const reviewTournamentDeck = onCall(async request => {
     body: approved
       ? 'Tudo certo com o seu deck.'
       : `${reason || 'O organizador recusou o print.'} Envie outro pelo app.`,
-    link: `/tournament/${ref.id}`,
+    link: `/tournament/${ref.id}/info`,
   });
   return { ok: true };
 });
