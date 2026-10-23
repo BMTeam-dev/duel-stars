@@ -93,3 +93,4 @@ GoogleService-Info.plist
 .claude/
 .agents/
 skills-lock.json
+.firebase/
