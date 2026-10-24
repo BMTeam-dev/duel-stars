@@ -69,12 +69,15 @@ export type ChallengePreview = {
 
 export type FeedPost = {
   id: string;
-  // 'win' = duelo casual; 'tournament' = campeão de torneio (sem loserUid).
-  type: 'win' | 'tournament';
+  // 'win' = duelo casual; 'tournament' = campeão de torneio (sem loserUid);
+  // 'match' = partida da reta final de um torneio (sem estrelas).
+  type: 'win' | 'tournament' | 'match';
   winnerUid: string;
   loserUid: string | null;
   tournamentId: string | null;
   tournamentName: string | null;
+  // Só em 'match': "Semifinal", "Final"...
+  roundLabel: string | null;
   playerCount: number | null;
   stars: number;
   format: DuelFormat;

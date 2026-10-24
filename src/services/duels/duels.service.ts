@@ -186,11 +186,12 @@ export function subscribeFeed(
           const data = d.data();
           return {
             id: d.id,
-            type: data.type === 'tournament' ? 'tournament' : 'win',
+            type: data.type === 'tournament' || data.type === 'match' ? data.type : 'win',
             winnerUid: data.winnerUid,
             loserUid: data.loserUid ?? null,
             tournamentId: data.tournamentId ?? null,
             tournamentName: data.tournamentName ?? null,
+            roundLabel: data.roundLabel ?? null,
             playerCount: data.playerCount ?? null,
             stars: data.stars,
             format: data.format,

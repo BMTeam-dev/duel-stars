@@ -47,6 +47,9 @@ const users = db.collection('users');
 const duels = db.collection('duels');
 const challenges = db.collection('challenges');
 const feed = db.collection('feed');
+// Fases do mata-mata (ou do top cut) que viram post no feed - os nomes vêm de
+// roundLabel() em tournaments.ts. O top cut vai no máximo até as quartas.
+const FINAL_STRETCH = ['Quartas de final', 'Semifinal', 'Final'];
 
 function requireAuth(uid: string | undefined): string {
   if (!uid)
@@ -446,13 +449,34 @@ export function applyFinalize(
     endedAt: now,
   });
 
-  // Partida de torneio não vale estrelas: não vira post (o campeão vai pro
-  // feed quando o torneio acaba).
   const unlocked = {
     [winnerUid]: medals.winner.unlocked,
     [loserUid]: medals.loser.unlocked,
   };
-  if (duel.tournamentId) return { loserUid, stake, unlocked };
+  // Partida de torneio não vale estrelas: só a reta final vira post (o
+  // campeão entra no feed quando o torneio acaba).
+  if (duel.tournamentId) {
+    if (duel.stage === 'top' && FINAL_STRETCH.includes(duel.roundLabel)) {
+      const cityIds = [winner.get('cityId'), loser.get('cityId')].filter(
+        (id): id is string => typeof id === 'string' && !!id,
+      );
+      tx.set(feed.doc(), {
+        type: 'match',
+        duelId: duelRef.id,
+        tournamentId: duel.tournamentId,
+        tournamentName: duel.tournamentName ?? null,
+        roundLabel: duel.roundLabel,
+        winnerUid,
+        loserUid,
+        stars: 0,
+        format: duel.format,
+        category,
+        cityIds: Array.from(new Set(cityIds)),
+        createdAt: now,
+      });
+    }
+    return { loserUid, stake, unlocked };
+  }
 
   // Feed guarda só uids: o app mostra sempre o nick atual de cada um.
   tx.set(feed.doc(), {

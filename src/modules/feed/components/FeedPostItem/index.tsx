@@ -51,6 +51,30 @@ export function FeedPostItem({
       </Card>
     );
   }
+  if (post.type === 'match') {
+    return (
+      <Card
+        onPress={() => post.tournamentId && onOpenTournament(post.tournamentId)}
+      >
+        <Avatar
+          name={winner?.nick ?? '?'}
+          photoUrl={winner?.photoUrl ?? null}
+          size={44}
+        />
+        <Body>
+          <Line numberOfLines={2}>
+            <Strong>@{winner?.nick ?? '...'}</Strong> venceu{' '}
+            <Strong>@{loser?.nick ?? '...'}</Strong>
+          </Line>
+          <Meta numberOfLines={1}>
+            {post.roundLabel} · {post.tournamentName} ·{' '}
+            {timeAgo(post.createdAt)}
+          </Meta>
+        </Body>
+        <Icon name="trophy-outline" size={24} color={colors.gold.main} />
+      </Card>
+    );
+  }
   // No post em que eu perdi, mostra o que EU perdi (−N, vermelho); nos
   // outros, o que o vencedor ganhou.
   const lost = post.loserUid === myUid;
