@@ -793,3 +793,49 @@ export const weeklyRefill = onSchedule(
     logger.info('weeklyRefill', { refilled });
   },
 );
+
+// "Chamar oponente": avisa o outro jogador de que você está pronto pra
+// jogar (duelos online, sem chat). Uma chamada a cada 10 min por jogador
+// em cada duelo, guardada em pings.<uid> (millis) no próprio duelo.
+const PING_INTERVAL_MS = 10 * 60 * 1000;
+
+export const pingOpponent = onCall<{ duelId: string }>(async request => {
+  const uid = requireAuth(request.auth?.uid);
+  const duelRef = duels.doc(String(request.data?.duelId ?? ''));
+
+  const out = await db.runTransaction(async tx => {
+    const snapshot = await tx.get(duelRef);
+    if (!snapshot.exists)
+      throw new HttpsError('not-found', 'Duelo não encontrado.');
+    const duel = snapshot.data()!;
+    const players = duel.players as string[];
+    if (!players.includes(uid))
+      throw new HttpsError('permission-denied', 'Esse duelo não é seu.');
+    if (duel.status !== 'active')
+      throw new HttpsError(
+        'failed-precondition',
+        'Esse duelo não está mais em andamento.',
+      );
+    const last: number = duel.pings?.[uid] ?? 0;
+    const wait = last + PING_INTERVAL_MS - Date.now();
+    if (wait > 0)
+      throw new HttpsError(
+        'resource-exhausted',
+        `Você já chamou há pouco. Tente de novo em ${Math.ceil(
+          wait / 60000,
+        )} min.`,
+      );
+    tx.update(duelRef, { [`pings.${uid}`]: Date.now() });
+    return { duel, opponent: other(players, uid) };
+  });
+
+  const nick = (await users.doc(uid).get()).get('nick');
+  await notifyUser(out.opponent, {
+    title: `@${nick ?? 'Seu oponente'} está te chamando`,
+    body: out.duel.tournamentName
+      ? `Estou online, bora jogar? (${out.duel.tournamentName})`
+      : 'Estou online, bora jogar?',
+    link: `/duel/${duelRef.id}`,
+  });
+  return { ok: true };
+});

@@ -13,6 +13,7 @@ import { DuelProps } from '../../../../navigation/props';
 import { useAppSelector } from '../../../../redux/store';
 import {
   duelErrorMessage,
+  pingOpponent,
   reportResult,
   subscribeDuel,
 } from '../../../../services/duels/duels.service';
@@ -58,6 +59,7 @@ import {
 
 function DuelScreen({ navigation, route }: DuelProps) {
   const { duelId } = route.params;
+  const [pinging, setPinging] = useState(false);
   const myUid = useAppSelector(state => state.auth.user?.uid) ?? '';
   const { showDialog } = useDialog();
   const winnerSheetRef = useRef<BottomSheetModal>(null);
@@ -110,6 +112,20 @@ function DuelScreen({ navigation, route }: DuelProps) {
       toast.error(duelErrorMessage(error));
     } finally {
       setSending(false);
+    }
+  };
+
+  const ping = async () => {
+    setPinging(true);
+    try {
+      await pingOpponent(duel.id);
+      toast.success(`@${opponent?.nick ?? 'Oponente'} foi avisado.`, {
+        description: 'Dá para chamar de novo daqui a 10 minutos.',
+      });
+    } catch (error) {
+      toast.error(duelErrorMessage(error));
+    } finally {
+      setPinging(false);
     }
   };
 
@@ -414,6 +430,13 @@ function DuelScreen({ navigation, route }: DuelProps) {
                   emptyText={`@${
                     opponent?.nick ?? '...'
                   } ainda não cadastrou o ID`}
+                />
+                <Button
+                  label={`Chamar @${opponent?.nick ?? '...'}`}
+                  icon="bell-ring-outline"
+                  variant="secondary"
+                  loading={pinging}
+                  onPress={ping}
                 />
               </>
             )}

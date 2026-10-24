@@ -4,6 +4,7 @@ export {
   previewChallenge,
   acceptChallenge,
   reportResult,
+  pingOpponent,
   expireDuels,
   weeklyRefill,
 } from './duels';

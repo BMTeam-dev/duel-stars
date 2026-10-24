@@ -52,6 +52,10 @@ export const reportResult = (duelId: string, winnerUid: string) =>
     { duelId, winnerUid },
   );
 
+// Notificação "Estou online, bora jogar?" pro oponente (1 a cada 10 min).
+export const pingOpponent = (duelId: string) =>
+  call<{ duelId: string }, { ok: boolean }>('pingOpponent', { duelId });
+
 // Código curto digitado à mão (6 letras/números, ver functions/src/duels.ts).
 export const CHALLENGE_CODE_LENGTH = 6;
 
