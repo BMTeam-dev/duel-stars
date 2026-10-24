@@ -15,7 +15,8 @@ type Props = {
   myUid: string;
   winner: PublicProfile | undefined;
   loser: PublicProfile | undefined;
-  onOpenTournament: (id: string) => void;
+  // undefined = torneio apagado: o card aparece, mas não abre nada.
+  onOpenTournament?: () => void;
 };
 
 export function FeedPostItem({
@@ -27,10 +28,7 @@ export function FeedPostItem({
 }: Props) {
   if (post.type === 'tournament') {
     return (
-      <Card
-        champion
-        onPress={() => post.tournamentId && onOpenTournament(post.tournamentId)}
-      >
+      <Card champion onPress={onOpenTournament}>
         <Avatar
           name={winner?.nick ?? '?'}
           photoUrl={winner?.photoUrl ?? null}
@@ -53,9 +51,7 @@ export function FeedPostItem({
   }
   if (post.type === 'match') {
     return (
-      <Card
-        onPress={() => post.tournamentId && onOpenTournament(post.tournamentId)}
-      >
+      <Card onPress={onOpenTournament}>
         <Avatar
           name={winner?.nick ?? '?'}
           photoUrl={winner?.photoUrl ?? null}

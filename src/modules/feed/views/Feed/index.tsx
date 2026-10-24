@@ -11,6 +11,7 @@ import { crashReportingService } from '../../../../services/crashReporting/crash
 import { subscribeFeed, subscribeMyDuels } from '../../../../services/duels/duels.service';
 import { Duel, FeedPost } from '../../../../services/duels/duels.types';
 import { usePublicProfiles } from '../../../../services/profile/usePublicProfiles';
+import { useMissingTournaments } from '../../../../services/tournaments/useMissingTournaments';
 import { useActiveCategory } from '../../../../services/profile/useActiveCategory';
 import { CategoryTabs } from '../../../../shared/ui/CategoryTabs';
 import { Scope, ScopeChips } from '../../../../shared/ui/ScopeChips';
@@ -55,6 +56,11 @@ function FeedScreen({ navigation }: FeedProps) {
     [posts],
   );
   const profiles = usePublicProfiles(playerUids);
+  const tournamentIds = useMemo(
+    () => (posts ?? []).flatMap(post => (post.tournamentId ? [post.tournamentId] : [])),
+    [posts],
+  );
+  const missingTournaments = useMissingTournaments(tournamentIds);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
@@ -97,7 +103,11 @@ function FeedScreen({ navigation }: FeedProps) {
                 myUid={profile?.uid ?? ''}
                 winner={profiles[item.winnerUid]}
                 loser={item.loserUid ? profiles[item.loserUid] : undefined}
-                onOpenTournament={id => navigation.navigate('Tournament', { tournamentId: id })}
+                onOpenTournament={
+                  item.tournamentId && !missingTournaments.has(item.tournamentId)
+                    ? () => navigation.navigate('Tournament', { tournamentId: item.tournamentId! })
+                    : undefined
+                }
               />
             )}
             ListEmptyComponent={
