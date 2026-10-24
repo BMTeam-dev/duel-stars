@@ -86,6 +86,7 @@ function toWallet(data: DocumentData | undefined): Wallet {
     losses: data?.losses ?? 0,
     streak: data?.streak ?? 0,
     bestStreak: data?.bestStreak ?? 0,
+    ranked: data?.ranked ?? false,
   };
 }
 
