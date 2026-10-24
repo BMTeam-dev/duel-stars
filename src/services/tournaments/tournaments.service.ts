@@ -135,6 +135,26 @@ export function subscribeOpenTournaments(
   );
 }
 
+// Ordem dos "Meus": em andamento, check-in e inscrições abertas em cima (o
+// que começa antes primeiro, sem data por último); depois os encerrados e
+// cancelados, do mais recente pro mais antigo.
+const STATUS_ORDER: Record<Tournament['status'], number> = {
+  running: 0,
+  checkin: 1,
+  open: 2,
+  finished: 3,
+  cancelled: 3,
+};
+
+function compareMine(a: Tournament, b: Tournament): number {
+  const byStatus = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+  if (byStatus) return byStatus;
+  // MAX_SAFE_INTEGER e não Infinity: Infinity - Infinity dá NaN.
+  const never = Number.MAX_SAFE_INTEGER;
+  if (STATUS_ORDER[a.status] < 3) return (a.startsAt ?? never) - (b.startsAt ?? never);
+  return (b.startsAt ?? 0) - (a.startsAt ?? 0);
+}
+
 // "Meus": onde estou inscrito + os que organizo, sem repetir.
 export function subscribeMyTournaments(
   uid: string,
@@ -145,8 +165,7 @@ export function subscribeMyTournaments(
   let organized: Tournament[] = [];
   const emit = () => {
     const byId = new Map([...joined, ...organized].map(t => [t.id, t]));
-    // Sem data (ainda por começar) em cima; depois do mais novo pro mais antigo.
-    onChange([...byId.values()].sort((a, b) => (b.startsAt ?? Infinity) - (a.startsAt ?? Infinity)));
+    onChange([...byId.values()].sort(compareMine));
   };
   const stopJoined = onSnapshot(
     query(tournaments, where('playerUids', 'array-contains', uid), orderBy('startsAt', 'desc'), limit(30)),

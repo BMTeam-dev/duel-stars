@@ -1,17 +1,19 @@
 import * as React from 'react';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { BackHandler, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../../../configs/colors';
 import { spacing } from '../../../../configs/theme';
 import { OnboardingProps } from '../../../../navigation/props';
 import { useAppSelector } from '../../../../redux/store';
 import { analyticsService } from '../../../../services/analytics/analytics.service';
+import { signOut } from '../../../../services/auth/auth.service';
 import { enableNotifications } from '../../../../services/notifications/notifications.service';
 import { createProfile, NickStatus } from '../../../../services/profile/profile.service';
 import { City, INITIAL_STARS } from '../../../../services/profile/profile.types';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Button } from '../../../../shared/ui/Button';
+import { useDialog } from '../../../../shared/ui/dialog/DialogProvider';
 import { Icon } from '../../../../shared/ui/Icon';
 import { toast } from '../../../../shared/ui/toast';
 import { CityPicker } from '../../../profile/components/CityPicker';
@@ -58,7 +60,34 @@ function OnboardingScreen(_: OnboardingProps) {
   const stepIndex = STEPS.indexOf(step);
   const photoUrl = useAccountPhoto ? authUser?.photoUrl ?? null : null;
   const goTo = (next: Step) => setStep(next);
-  const goBack = () => setStep(STEPS[stepIndex - 1]);
+  const { showDialog } = useDialog();
+
+  // No primeiro passo, voltar = sair pro login (conta errada, desistiu do
+  // e-mail...). A conta fica sem perfil; entrando de novo, o cadastro recomeça.
+  const goBack = async () => {
+    if (saving) return;
+    if (stepIndex > 0) {
+      setStep(STEPS[stepIndex - 1]);
+      return;
+    }
+    const confirmed = await showDialog({
+      icon: 'logout',
+      title: 'Voltar para o login?',
+      message: 'Seu cadastro ainda não terminou. Quando entrar de novo, é só continuar daqui.',
+      confirmLabel: 'Voltar',
+      cancelLabel: 'Cancelar',
+    });
+    if (confirmed) await signOut();
+  };
+
+  // Voltar do Android segue o mesmo caminho em vez de fechar o app.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      goBack();
+      return true;
+    });
+    return () => subscription.remove();
+  });
 
   const handleEnableNotifications = async () => {
     setAskingPermission(true);
@@ -207,7 +236,7 @@ function OnboardingScreen(_: OnboardingProps) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <Header>
-          {stepIndex > 0 && step !== 'done' ? (
+          {step !== 'done' ? (
             <BackButton onPress={goBack} hitSlop={12}>
               <Icon name="arrow-left" />
             </BackButton>
