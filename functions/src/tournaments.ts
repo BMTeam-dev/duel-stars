@@ -1623,18 +1623,19 @@ export const postTournamentNotice = onCall(async request => {
   return { ok: true };
 });
 
-// Organizador ajusta a descrição (banlist, regras, premiação) a qualquer
-// momento antes do fim. Sem notificação: é só texto da tela do torneio.
-export const updateTournamentDescription = onCall(async request => {
+// Organizador ajusta a descrição (banlist, regras, premiação) e o contato a
+// qualquer momento antes do fim. Sem notificação: é só texto da tela.
+export const updateTournamentInfo = onCall(async request => {
   const uid = requireAuth(request.auth?.uid);
   const tRef = tournaments.doc(String(request.data?.id ?? ''));
   const description = text(request.data?.description, 500);
+  const contact = text(request.data?.contact, 80) || null;
 
   await db.runTransaction(async tx => {
     const data = requireOrganizer((await tx.get(tRef)).data(), uid);
     if (!ACTIVE.includes(data.status))
       throw new HttpsError('failed-precondition', 'O torneio já terminou.');
-    tx.update(tRef, { description });
+    tx.update(tRef, { description, contact });
   });
   return { ok: true };
 });

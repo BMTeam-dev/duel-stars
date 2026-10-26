@@ -24,7 +24,7 @@ import {
   leaveTournament,
   needsGameId,
   postNotice,
-  updateDescription,
+  updateTournamentInfo,
   resolveMatch,
   reviewDeck,
   setRoundDeadline,
@@ -54,7 +54,7 @@ import { DeckReviewSheet } from '../../components/DeckReviewSheet';
 import { MatchRow } from '../../components/MatchRow';
 import { RoundPanel } from '../../components/RoundPanel';
 import { RoundSheet, RoundSheetMode } from '../../components/RoundSheet';
-import { DescriptionSheet } from '../../components/DescriptionSheet';
+import { TournamentInfoSheet } from '../../components/TournamentInfoSheet';
 import { AppSheet } from '../../../../shared/ui/AppSheet';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Button } from '../../../../shared/ui/Button';
@@ -150,7 +150,7 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   const resolveSheetRef = useRef<BottomSheetModal>(null);
   const roundSheetRef = useRef<BottomSheetModal>(null);
   const deckSheetRef = useRef<BottomSheetModal>(null);
-  const descriptionSheetRef = useRef<BottomSheetModal>(null);
+  const infoSheetRef = useRef<BottomSheetModal>(null);
   const [deckOf, setDeckOf] = useState<string | null>(null);
   const [roundSheetMode, setRoundSheetMode] = useState<RoundSheetMode>('start');
 
@@ -489,12 +489,12 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     if (done) roundSheetRef.current?.dismiss();
   };
 
-  const saveDescription = async (description: string) => {
+  const saveInfo = async (description: string, contact: string) => {
     const done = await run(
-      () => updateDescription(t.id, description),
-      'Descrição atualizada',
+      () => updateTournamentInfo(t.id, description, contact),
+      'Torneio atualizado',
     );
-    if (done) descriptionSheetRef.current?.dismiss();
+    if (done) infoSheetRef.current?.dismiss();
   };
 
   // Grupos na ordem da chave: rodadas do suíço, depois as do mata-mata.
@@ -717,12 +717,10 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                 )}
                 {t.status !== 'finished' && (
                   <Button
-                    label={
-                      t.description ? 'Editar descrição' : 'Adicionar descrição'
-                    }
+                    label="Editar descrição e contato"
                     icon="pencil"
                     variant="secondary"
-                    onPress={() => descriptionSheetRef.current?.present()}
+                    onPress={() => infoSheetRef.current?.present()}
                   />
                 )}
                 <Button
@@ -937,11 +935,12 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
         onSubmit={submitRound}
       />
 
-      <DescriptionSheet
-        ref={descriptionSheetRef}
-        current={t.description ?? ''}
+      <TournamentInfoSheet
+        ref={infoSheetRef}
+        description={t.description ?? ''}
+        contact={t.contact ?? ''}
         busy={busy}
-        onSubmit={saveDescription}
+        onSubmit={saveInfo}
       />
 
       <DeckReviewSheet

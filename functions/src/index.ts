@@ -21,7 +21,7 @@ export {
   startTournamentRound,
   setTournamentRoundDeadline,
   postTournamentNotice,
-  updateTournamentDescription,
+  updateTournamentInfo,
   onTournamentDuelEnded,
   remindTournamentDeadlines,
 } from './tournaments';
