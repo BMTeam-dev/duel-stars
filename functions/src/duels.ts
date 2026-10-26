@@ -584,12 +584,16 @@ export const reportResult = onCall<{ duelId: string; winnerUid: string }>(
       }
 
       if (!opponentReport) {
+        // Quem já informou pode corrigir enquanto o oponente não respondeu;
+        // o prazo de 24h recomeça pra ele ver a versão nova.
+        const corrected =
+          !!duel.reports?.[uid] && duel.reports[uid] !== winnerUid;
         tx.update(duelRef, {
           [`reports.${uid}`]: winnerUid,
           status: 'awaiting' as DuelStatus,
           firstReportAt: FieldValue.serverTimestamp(),
         });
-        return { kind: 'awaiting' as const, opponent };
+        return { kind: 'awaiting' as const, opponent, corrected };
       }
       if (opponentReport === winnerUid) {
         tx.update(duelRef, { [`reports.${uid}`]: winnerUid });
@@ -617,8 +621,12 @@ export const reportResult = onCall<{ duelId: string; winnerUid: string }>(
     if (outcome.kind === 'awaiting') {
       const nick = (await users.doc(uid).get()).get('nick');
       await notifyUser(outcome.opponent, {
-        title: 'Confirme o resultado',
-        body: `@${nick} informou o resultado do duelo. Confirme em até 24 horas.`,
+        title: outcome.corrected
+          ? 'Resultado corrigido'
+          : 'Confirme o resultado',
+        body: outcome.corrected
+          ? `@${nick} corrigiu o resultado do duelo. Confira e confirme em até 24 horas.`
+          : `@${nick} informou o resultado do duelo. Confirme em até 24 horas.`,
         link: `/duel/${duelRef.id}`,
       });
     } else if (outcome.kind === 'done') {

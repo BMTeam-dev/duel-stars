@@ -160,6 +160,21 @@ function DuelScreen({ navigation, route }: DuelProps) {
     if (confirmed) send(realWinner);
   };
 
+  // Antes do oponente responder, quem informou ainda pode trocar o vencedor.
+  const fixMyReport = async (wrongWinner: string) => {
+    const realWinner = wrongWinner === myUid ? opponentUid : myUid;
+    const confirmed = await showDialog({
+      icon: 'pencil',
+      title: 'Corrigir o resultado?',
+      message: `Você vai informar que ${
+        realWinner === myUid ? 'você' : nickOf(realWinner)
+      } venceu. ${nickOf(opponentUid)} recebe um aviso para confirmar.`,
+      confirmLabel: 'Corrigir',
+      cancelLabel: 'Voltar',
+    });
+    if (confirmed) send(realWinner);
+  };
+
   // Disputa: concordar com a versão do oponente fecha o duelo na hora.
   const agree = async (winnerUid: string) => {
     const iLose = winnerUid !== myUid;
@@ -349,7 +364,18 @@ function DuelScreen({ navigation, route }: DuelProps) {
         </StatusText>
       </StatusCard>
     );
-    footer = <Button label="Voltar" variant="secondary" onPress={leave} />;
+    footer = (
+      <>
+        <Button label="Voltar" variant="secondary" onPress={leave} />
+        <Button
+          label="Informei errado"
+          icon="pencil"
+          variant="ghost"
+          loading={sending}
+          onPress={() => fixMyReport(myReport)}
+        />
+      </>
+    );
   } else if (opponentReport && !myReport) {
     statusCard = (
       <StatusCard tone="gold">

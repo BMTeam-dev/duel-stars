@@ -40,6 +40,8 @@ export const startRound = (id: string, deadlineAt: number | null, message: strin
 export const setRoundDeadline = (id: string, deadlineAt: number | null) =>
   call('setTournamentRoundDeadline', { id, deadlineAt });
 export const postNotice = (id: string, message: string) => call('postTournamentNotice', { id, message });
+export const updateDescription = (id: string, description: string) =>
+  call('updateTournamentDescription', { id, description });
 // Print do deck: sobe pro Storage (cada envio é um arquivo novo) e avisa o
 // backend, que guarda o caminho e põe o deck em análise. O organizador vai
 // nos metadados pra poder ler (storage.rules).

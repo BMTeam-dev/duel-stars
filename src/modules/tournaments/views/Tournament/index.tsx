@@ -24,6 +24,7 @@ import {
   leaveTournament,
   needsGameId,
   postNotice,
+  updateDescription,
   resolveMatch,
   reviewDeck,
   setRoundDeadline,
@@ -53,6 +54,7 @@ import { DeckReviewSheet } from '../../components/DeckReviewSheet';
 import { MatchRow } from '../../components/MatchRow';
 import { RoundPanel } from '../../components/RoundPanel';
 import { RoundSheet, RoundSheetMode } from '../../components/RoundSheet';
+import { DescriptionSheet } from '../../components/DescriptionSheet';
 import { AppSheet } from '../../../../shared/ui/AppSheet';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Button } from '../../../../shared/ui/Button';
@@ -148,6 +150,7 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   const resolveSheetRef = useRef<BottomSheetModal>(null);
   const roundSheetRef = useRef<BottomSheetModal>(null);
   const deckSheetRef = useRef<BottomSheetModal>(null);
+  const descriptionSheetRef = useRef<BottomSheetModal>(null);
   const [deckOf, setDeckOf] = useState<string | null>(null);
   const [roundSheetMode, setRoundSheetMode] = useState<RoundSheetMode>('start');
 
@@ -486,6 +489,14 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     if (done) roundSheetRef.current?.dismiss();
   };
 
+  const saveDescription = async (description: string) => {
+    const done = await run(
+      () => updateDescription(t.id, description),
+      'Descrição atualizada',
+    );
+    if (done) descriptionSheetRef.current?.dismiss();
+  };
+
   // Grupos na ordem da chave: rodadas do suíço, depois as do mata-mata.
   const groups = [...new Set(matches.map(m => `${m.stage}-${m.round}`))].map(
     key => {
@@ -704,6 +715,16 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                     dupla.
                   </Meta>
                 )}
+                {t.status !== 'finished' && (
+                  <Button
+                    label={
+                      t.description ? 'Editar descrição' : 'Adicionar descrição'
+                    }
+                    icon="pencil"
+                    variant="secondary"
+                    onPress={() => descriptionSheetRef.current?.present()}
+                  />
+                )}
                 <Button
                   label="Compartilhar"
                   icon="share-variant"
@@ -914,6 +935,13 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
         }
         busy={busy}
         onSubmit={submitRound}
+      />
+
+      <DescriptionSheet
+        ref={descriptionSheetRef}
+        current={t.description ?? ''}
+        busy={busy}
+        onSubmit={saveDescription}
       />
 
       <DeckReviewSheet

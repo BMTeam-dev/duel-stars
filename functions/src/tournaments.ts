@@ -1623,6 +1623,22 @@ export const postTournamentNotice = onCall(async request => {
   return { ok: true };
 });
 
+// Organizador ajusta a descrição (banlist, regras, premiação) a qualquer
+// momento antes do fim. Sem notificação: é só texto da tela do torneio.
+export const updateTournamentDescription = onCall(async request => {
+  const uid = requireAuth(request.auth?.uid);
+  const tRef = tournaments.doc(String(request.data?.id ?? ''));
+  const description = text(request.data?.description, 500);
+
+  await db.runTransaction(async tx => {
+    const data = requireOrganizer((await tx.get(tRef)).data(), uid);
+    if (!ACTIVE.includes(data.status))
+      throw new HttpsError('failed-precondition', 'O torneio já terminou.');
+    tx.update(tRef, { description });
+  });
+  return { ok: true };
+});
+
 // Organizador destrava uma partida parada: dá a vitória a um lado (W.O.) ou
 // derrota dupla. O trigger acima avança o torneio.
 export const resolveTournamentMatch = onCall(async request => {
