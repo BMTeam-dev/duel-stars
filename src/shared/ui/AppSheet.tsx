@@ -35,6 +35,10 @@ export const AppSheet = forwardRef<BottomSheetModal, Props>(
       <BottomSheetModal
         ref={ref}
         enableDynamicSizing
+        // Com teclado aberto o sheet sobe junto; ao fechar, volta ao tamanho.
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
         backdropComponent={renderBackdrop}
         backgroundStyle={{ backgroundColor: colors.surface, borderRadius: radius.lg * 1.5 }}
         handleIndicatorStyle={{ backgroundColor: colors.border, width: 40 }}

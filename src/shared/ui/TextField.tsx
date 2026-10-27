@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { BottomSheetTextInput, useBottomSheetInternal } from '@gorhom/bottom-sheet';
 import { TextInput } from 'react-native-paper';
 import styled from 'styled-components/native';
 import { colors } from '../../configs/colors';
@@ -15,7 +16,12 @@ const helperColor = {
   negative: colors.feedback.negative,
 };
 
+// Dentro de um bottom sheet o input nativo precisa ser o do bottom-sheet:
+// é ele que avisa o sheet do foco pra subir junto com o teclado.
+const renderSheetInput: Props['render'] = props => <BottomSheetTextInput {...(props as any)} />;
+
 export function TextField({ helper, helperTone = 'neutral', ...inputProps }: Props) {
+  const inSheet = !!useBottomSheetInternal(true);
   return (
     <Wrapper>
       <TextInput
@@ -24,6 +30,7 @@ export function TextField({ helper, helperTone = 'neutral', ...inputProps }: Pro
         outlineColor={colors.border}
         activeOutlineColor={colors.gold.main}
         style={{ backgroundColor: colors.surface }}
+        render={inSheet ? renderSheetInput : undefined}
         {...inputProps}
       />
       {!!helper && <Helper color={helperColor[helperTone]}>{helper}</Helper>}
