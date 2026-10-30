@@ -284,3 +284,19 @@ export const OrganizerTagText = styled.Text`
   font-size: ${fontSize.caption}px;
   font-weight: 800;
 `;
+
+export const PendingNotice = styled.View`
+  flex-direction: row;
+  align-items: center;
+  gap: ${spacing.sm}px;
+  padding: ${spacing.md}px;
+  border-radius: ${radius.md}px;
+  background-color: ${colors.gold.soft};
+`;
+
+export const PendingNoticeText = styled.Text`
+  flex: 1;
+  color: ${colors.gold.main};
+  font-size: ${fontSize.body}px;
+  font-weight: 700;
+`;

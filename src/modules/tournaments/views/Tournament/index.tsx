@@ -95,6 +95,8 @@ import {
   OrganizerRow,
   OrganizerTag,
   OrganizerTagText,
+  PendingNotice,
+  PendingNoticeText,
   OrganizerTitle,
   PaidChip,
   PaidChipText,
@@ -526,8 +528,7 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     {
       value: 'players',
       label: 'Jogadores',
-      // Pro organizador, o número de decks esperando análise.
-      badge: isOrganizer && pendingDecks ? pendingDecks : t.playerCount,
+      badge: t.playerCount,
     },
     { value: 'rounds', label: 'Rodadas' },
     ...(showStandings
@@ -761,6 +762,17 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                 </OrganizerTagText>
               </OrganizerTag>
             </OrganizerRow>
+            {isOrganizer && pendingDecks > 0 && notStarted(t) && (
+              <PendingNotice>
+                <Icon name="cards" size={20} color={colors.gold.main} />
+                <PendingNoticeText>
+                  {pendingDecks === 1
+                    ? '1 deck esperando sua análise'
+                    : `${pendingDecks} decks esperando sua análise`}
+                  . Toque em "Em análise" para ver o print.
+                </PendingNoticeText>
+              </PendingNotice>
+            )}
             {players.length === 0 ? (
               <Empty>Ninguém inscrito ainda.</Empty>
             ) : (
