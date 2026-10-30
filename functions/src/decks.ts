@@ -136,3 +136,61 @@ export const reviewTournamentDeck = onCall(async request => {
   });
   return { ok: true };
 });
+
+// Organizador lembra quem ainda não mandou o print (ou teve o deck recusado).
+// Uma vez por hora, pra não virar spam.
+const REMIND_COOLDOWN_MS = 60 * 60 * 1000;
+
+export const remindTournamentDecks = onCall(async request => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Entre na sua conta.');
+  const ref = tournaments.doc(String(request.data?.id ?? ''));
+
+  const t = await db.runTransaction(async tx => {
+    const data = (await tx.get(ref)).data();
+    if (!data) throw new HttpsError('not-found', 'Torneio não encontrado.');
+    if (data.organizerUid !== uid)
+      throw new HttpsError(
+        'permission-denied',
+        'Só o organizador pode cobrar os decks.',
+      );
+    if (!data.requireDeck)
+      throw new HttpsError(
+        'failed-precondition',
+        'Esse torneio não pede o deck.',
+      );
+    if (!NOT_STARTED.includes(data.status))
+      throw new HttpsError('failed-precondition', 'O torneio já começou.');
+    const last: number = data.deckReminderAt ?? 0;
+    const wait = last + REMIND_COOLDOWN_MS - Date.now();
+    if (wait > 0)
+      throw new HttpsError(
+        'resource-exhausted',
+        `Você já cobrou há pouco. Tente de novo em ${Math.ceil(
+          wait / 60000,
+        )} min.`,
+      );
+    tx.update(ref, { deckReminderAt: Date.now() });
+    return data;
+  });
+
+  const players = await ref.collection('players').get();
+  const missing = players.docs.filter(
+    doc =>
+      doc.id !== uid &&
+      ['missing', 'rejected', undefined, null].includes(doc.get('deckStatus')),
+  );
+  await Promise.all(
+    missing.map(doc =>
+      notifyUser(doc.id, {
+        title: `${t.name}: falta o seu deck`,
+        body:
+          doc.get('deckStatus') === 'rejected'
+            ? 'Seu deck foi recusado. Envie outro print antes do torneio começar.'
+            : 'Envie o print do seu deck antes do torneio começar.',
+        link: `/tournament/${ref.id}/info`,
+      }),
+    ),
+  );
+  return { count: missing.length };
+});

@@ -24,6 +24,7 @@ import {
   leaveTournament,
   needsGameId,
   postNotice,
+  remindDecks,
   updateTournamentInfo,
   resolveMatch,
   reviewDeck,
@@ -337,6 +338,16 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     info.push(['Print do deck', 'Obrigatório, validado pelo organizador']);
   const deckPlayer = players.find(p => p.uid === deckOf) ?? null;
   const pendingDecks = players.filter(p => p.deckStatus === 'pending').length;
+  // Sem print ou recusado: quem o organizador pode cobrar.
+  const missingDecks = t.requireDeck
+    ? players.filter(
+        p =>
+          p.uid !== t.organizerUid &&
+          (!p.deckStatus ||
+            p.deckStatus === 'missing' ||
+            p.deckStatus === 'rejected'),
+      ).length
+    : 0;
 
   const openDeck = (playerUid: string) => {
     setDeckOf(playerUid);
@@ -772,6 +783,24 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                   . Toque em "Em análise" para ver o print.
                 </PendingNoticeText>
               </PendingNotice>
+            )}
+            {isOrganizer && missingDecks > 0 && notStarted(t) && (
+              <Button
+                label={
+                  missingDecks === 1
+                    ? 'Cobrar deck de 1 jogador'
+                    : `Cobrar deck de ${missingDecks} jogadores`
+                }
+                icon="bell-ring-outline"
+                variant="secondary"
+                loading={busy}
+                onPress={() =>
+                  run(
+                    () => remindDecks(t.id),
+                    'Lembrete enviado para quem falta mandar o deck',
+                  )
+                }
+              />
             )}
             {players.length === 0 ? (
               <Empty>Ninguém inscrito ainda.</Empty>

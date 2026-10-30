@@ -26,4 +26,8 @@ export {
   remindTournamentDeadlines,
 } from './tournaments';
 export { deleteAccount } from './account';
-export { submitTournamentDeck, reviewTournamentDeck } from './decks';
+export {
+  submitTournamentDeck,
+  reviewTournamentDeck,
+  remindTournamentDecks,
+} from './decks';
