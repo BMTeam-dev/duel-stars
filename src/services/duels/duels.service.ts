@@ -190,7 +190,7 @@ export function subscribeFeed(
           const data = d.data();
           return {
             id: d.id,
-            type: data.type === 'tournament' || data.type === 'match' ? data.type : 'win',
+            type: ['tournament', 'match', 'round'].includes(data.type) ? data.type : 'win',
             winnerUid: data.winnerUid,
             loserUid: data.loserUid ?? null,
             tournamentId: data.tournamentId ?? null,

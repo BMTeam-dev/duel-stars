@@ -972,6 +972,8 @@ type SettleOut = {
   created?: Created[];
   byes?: { id: string; player: string }[];
   t?: DocumentData;
+  // Suíço: rodada que acabou de fechar, com o líder da classificação.
+  roundDone?: { round: number; leader: string; players: string[] };
 };
 
 // Mata-mata: fecha a partida e, se a irmã já terminou, monta a próxima.
@@ -1120,6 +1122,11 @@ async function settleSwissMatch(
     }
 
     const all = [...players.values()];
+    const roundDone = {
+      round,
+      leader: standings(all)[0].uid,
+      players: all.map(p => p.uid),
+    };
     if (round < t.swissRounds) {
       const { created, bye } = createSwissRound(tx, tRef, t, round + 1, all);
       if (bye) {
@@ -1128,7 +1135,7 @@ async function settleSwissMatch(
       }
       writePlayers();
       tx.update(tRef, { currentRound: round + 1 });
-      return { created, t };
+      return { created, t, roundDone };
     }
 
     writePlayers();
@@ -1154,6 +1161,7 @@ async function settleSwissMatch(
       created: bracket.created,
       byes: bracket.byes,
       t: { ...t, rounds: bracket.rounds },
+      roundDone,
     };
   });
 }
@@ -1166,6 +1174,7 @@ async function settleAndAdvance(
 ) {
   if (id.startsWith('w')) {
     const out = await settleSwissMatch(tRef, id, winnerUid);
+    if (out.t && out.roundDone) await postRoundDone(tRef, out.t, out.roundDone);
     if (out.t && out.created)
       await Promise.all(out.created.map(m => notifyMatch(out.t!, m)));
     for (const bye of out.byes ?? [])
@@ -1283,6 +1292,41 @@ async function finishBracket(tRef: DocumentReference) {
     return { t, champion: placements[0] };
   });
   if (result?.champion) await notifyFinished(tRef, result.t, result.champion);
+}
+
+// Fim de rodada do suíço vira um post só no Feed (os duelos em si ficam
+// de fora, menos os da última rodada). Sem top cut, a última rodada já
+// é o fim do torneio e o post do campeão cobre.
+async function postRoundDone(
+  tRef: DocumentReference,
+  t: DocumentData,
+  done: NonNullable<SettleOut['roundDone']>,
+) {
+  const last = done.round >= t.swissRounds;
+  if (last && !t.topCut) return;
+  const docs = done.players.length
+    ? await db.getAll(...done.players.map(uid => users.doc(uid)))
+    : [];
+  const cityIds = [
+    ...new Set(
+      docs
+        .map(d => d.get('cityId'))
+        .filter((id): id is string => typeof id === 'string' && !!id),
+    ),
+  ];
+  await db.collection('feed').add({
+    type: 'round',
+    tournamentId: tRef.id,
+    tournamentName: t.name,
+    roundLabel: last ? 'Suíço' : `Rodada ${done.round} de ${t.swissRounds}`,
+    winnerUid: done.leader,
+    playerCount: done.players.length,
+    stars: 0,
+    format: t.matchFormat,
+    category: t.category,
+    cityIds,
+    createdAt: FieldValue.serverTimestamp(),
+  });
 }
 
 async function notifyFinished(

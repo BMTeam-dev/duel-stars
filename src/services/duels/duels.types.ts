@@ -70,13 +70,14 @@ export type ChallengePreview = {
 export type FeedPost = {
   id: string;
   // 'win' = duelo casual; 'tournament' = campeão de torneio (sem loserUid);
-  // 'match' = partida da reta final de um torneio (sem estrelas).
-  type: 'win' | 'tournament' | 'match';
+  // 'match' = partida da reta final ou da última rodada do suíço (sem
+  // estrelas); 'round' = fim de uma rodada do suíço (winnerUid = líder).
+  type: 'win' | 'tournament' | 'match' | 'round';
   winnerUid: string;
   loserUid: string | null;
   tournamentId: string | null;
   tournamentName: string | null;
-  // Só em 'match': "Semifinal", "Final"...
+  // Em 'match': "Semifinal", "Final"...; em 'round': "Rodada 2 de 4" ou "Suíço".
   roundLabel: string | null;
   playerCount: number | null;
   stars: number;

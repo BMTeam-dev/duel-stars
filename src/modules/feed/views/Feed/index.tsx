@@ -105,7 +105,12 @@ function FeedScreen({ navigation }: FeedProps) {
                 loser={item.loserUid ? profiles[item.loserUid] : undefined}
                 onOpenTournament={
                   item.tournamentId && !missingTournaments.has(item.tournamentId)
-                    ? () => navigation.navigate('Tournament', { tournamentId: item.tournamentId! })
+                    ? () =>
+                        navigation.navigate('Tournament', {
+                          tournamentId: item.tournamentId!,
+                          // Fim de rodada abre direto na classificação.
+                          tab: item.type === 'round' ? 'standings' : undefined,
+                        })
                     : undefined
                 }
               />

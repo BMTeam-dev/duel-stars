@@ -49,6 +49,30 @@ export function FeedPostItem({
       </Card>
     );
   }
+  if (post.type === 'round') {
+    const swissOver = post.roundLabel === 'Suíço';
+    return (
+      <Card onPress={onOpenTournament}>
+        <Avatar
+          name={winner?.nick ?? '?'}
+          photoUrl={winner?.photoUrl ?? null}
+          size={44}
+        />
+        <Body>
+          <Line numberOfLines={2}>
+            <Strong>{post.roundLabel}</Strong> do{' '}
+            <Strong>{post.tournamentName}</Strong> terminou
+          </Line>
+          <Meta numberOfLines={1}>
+            @{winner?.nick ?? '...'} {swissOver ? 'em 1º' : 'lidera'}
+            {post.playerCount ? ` · ${post.playerCount} jogadores` : ''} ·{' '}
+            {timeAgo(post.createdAt)}
+          </Meta>
+        </Body>
+        <Icon name="format-list-numbered" size={24} color={colors.gold.main} />
+      </Card>
+    );
+  }
   if (post.type === 'match') {
     return (
       <Card onPress={onOpenTournament}>

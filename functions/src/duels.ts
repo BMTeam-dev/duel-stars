@@ -50,6 +50,11 @@ const feed = db.collection('feed');
 // Fases do mata-mata (ou do top cut) que viram post no feed - os nomes vêm de
 // roundLabel() em tournaments.ts. O top cut vai no máximo até as quartas.
 const FINAL_STRETCH = ['Quartas de final', 'Semifinal', 'Final'];
+// "Suíço · rodada 4 de 4": a última rodada decide quem vai pro top.
+const isLastSwissRound = (label: unknown) => {
+  const m = /rodada (\d+) de (\d+)$/.exec(String(label ?? ''));
+  return !!m && m[1] === m[2];
+};
 
 function requireAuth(uid: string | undefined): string {
   if (!uid)
@@ -453,10 +458,14 @@ export function applyFinalize(
     [winnerUid]: medals.winner.unlocked,
     [loserUid]: medals.loser.unlocked,
   };
-  // Partida de torneio não vale estrelas: só a reta final vira post (o
-  // campeão entra no feed quando o torneio acaba).
+  // Partida de torneio não vale estrelas: só a reta final e a última rodada
+  // do suíço viram post (o fim de cada rodada e o campeão entram pelo
+  // tournaments.ts).
   if (duel.tournamentId) {
-    if (duel.stage === 'top' && FINAL_STRETCH.includes(duel.roundLabel)) {
+    if (
+      (duel.stage === 'top' && FINAL_STRETCH.includes(duel.roundLabel)) ||
+      (duel.stage === 'swiss' && isLastSwissRound(duel.roundLabel))
+    ) {
       const cityIds = [winner.get('cityId'), loser.get('cityId')].filter(
         (id): id is string => typeof id === 'string' && !!id,
       );

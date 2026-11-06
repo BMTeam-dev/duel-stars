@@ -32,7 +32,9 @@ type Tab = 'open' | 'mine';
 function TournamentsScreen({ navigation }: TournamentsProps) {
   const uid = useAppSelector(state => state.profile.profile?.uid) ?? '';
   const { category, setCategory } = useActiveCategory();
-  const [tab, setTab] = useState<Tab>('open');
+  // Abre em "Meus"; quem não tem nenhum torneio cai direto em "Abertos".
+  const [tab, setTab] = useState<Tab>('mine');
+  const firstLoad = useRef(true);
   const [list, setList] = useState<Tournament[] | null>(null);
   const [code, setCode] = useState('');
   const [searching, setSearching] = useState(false);
@@ -46,7 +48,18 @@ function TournamentsScreen({ navigation }: TournamentsProps) {
     };
     return tab === 'open'
       ? subscribeOpenTournaments(category, 50, setList, onError)
-      : subscribeMyTournaments(uid, setList, onError);
+      : subscribeMyTournaments(
+          uid,
+          mine => {
+            // Sem uid (perfil ainda carregando) a lista vem vazia: não conta.
+            if (uid && firstLoad.current) {
+              firstLoad.current = false;
+              if (mine.length === 0) setTab('open');
+            }
+            setList(mine);
+          },
+          onError,
+        );
   }, [tab, category, uid]);
 
   const openByCode = async () => {
@@ -87,8 +100,8 @@ function TournamentsScreen({ navigation }: TournamentsProps) {
         {tab === 'open' && <CategoryTabs value={category} onChange={setCategory} />}
         <OptionChips<Tab>
           options={[
-            { value: 'open', label: 'Abertos' },
             { value: 'mine', label: 'Meus' },
+            { value: 'open', label: 'Abertos' },
           ]}
           value={tab}
           onChange={setTab}
