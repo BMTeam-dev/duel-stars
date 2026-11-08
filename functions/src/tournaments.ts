@@ -1583,6 +1583,165 @@ export const startTournamentRound = onCall(async request => {
   return { ok: true };
 });
 
+// Reabre a rodada anterior do suíço manual para quem não jogou: com a
+// rodada seguinte ainda aguardando início (sem duelo), as partidas que
+// caíram em derrota dupla por prazo (ninguém reportou) voltam a valer, sem
+// prazo e com o mesmo oponente. Os confrontos da rodada seguinte somem e a
+// pontuação é refeita com o que continua valendo; quando as reabertas
+// terminarem, a rodada seguinte é montada de novo.
+export const reopenTournamentRound = onCall(async request => {
+  const uid = requireAuth(request.auth?.uid);
+  const tRef = tournaments.doc(String(request.data?.id ?? ''));
+
+  const out = await db.runTransaction(async tx => {
+    const t = requireOrganizer((await tx.get(tRef)).data(), uid);
+    const round = (t.currentRound ?? 0) - 1;
+    if (
+      t.status !== 'running' ||
+      t.stage !== 'swiss' ||
+      !manualRounds(t) ||
+      t.roundPhase !== 'ready' ||
+      round < 1
+    )
+      throw new HttpsError(
+        'failed-precondition',
+        'Só dá para reabrir a rodada anterior do suíço antes de iniciar a próxima.',
+      );
+    const matches = await tx.get(
+      tRef.collection('matches').where('stage', '==', 'swiss'),
+    );
+    const next = matches.docs.filter(d => d.get('round') === round + 1);
+    if (next.some(d => d.get('duelId')))
+      throw new HttpsError(
+        'failed-precondition',
+        'A próxima rodada já começou.',
+      );
+    const candidates = matches.docs.filter(
+      d =>
+        d.get('round') === round &&
+        d.get('result') === 'double_loss' &&
+        d.get('duelId'),
+    );
+    const duelSnaps = await Promise.all(
+      candidates.map(d => tx.get(duels.doc(d.get('duelId')))),
+    );
+    // Só derrota dupla por prazo sem informe (duelo cancelado); W.O. e
+    // derrota dupla dada pelo organizador continuam valendo.
+    const byDeadline = (snap: FirebaseFirestore.DocumentSnapshot) =>
+      snap.get('status') === 'cancelled' && !snap.get('resolvedBy');
+    const reopen = candidates.filter((_, i) => byDeadline(duelSnaps[i]));
+    const reopenDuels = duelSnaps.filter(byDeadline);
+    if (!reopen.length)
+      throw new HttpsError(
+        'failed-precondition',
+        'Nenhuma partida da rodada anterior ficou sem jogar.',
+      );
+    const playerDocs = await tx.get(tRef.collection('players'));
+
+    // Pontuação do zero, só com as partidas que continuam valendo.
+    const players = new Map(
+      playerDocs.docs.map(d => [d.id, toSwissPlayer({}, d.id)]),
+    );
+    const keep = matches.docs.filter(
+      d =>
+        d.get('round') <= round &&
+        d.get('status') === 'done' &&
+        !reopen.includes(d),
+    );
+    for (const m of keep) {
+      const [a, b] = m.get('players') as [string, string | null];
+      if (m.get('result') === 'bye') {
+        applyBye(players.get(a)!);
+        continue;
+      }
+      for (const player of [a, b as string]) {
+        const p = players.get(player)!;
+        const won = m.get('winnerUid') === player;
+        p.points += won ? 3 : 0;
+        p.wins += won ? 1 : 0;
+        p.losses += won ? 0 : 1;
+        p.opponents.push(player === a ? (b as string) : a);
+      }
+    }
+
+    next.forEach(d => tx.delete(d.ref));
+    reopen.forEach((d, i) => {
+      tx.update(d.ref, {
+        status: 'active',
+        winnerUid: null,
+        result: null,
+        endedAt: FieldValue.delete(),
+      });
+      tx.update(reopenDuels[i].ref, {
+        status: 'active',
+        reports: {},
+        deadlineAt: null,
+        roundMinutes: null,
+        reminderSent: false,
+        endedAt: FieldValue.delete(),
+      });
+    });
+    players.forEach((p, player) =>
+      tx.update(tRef.collection('players').doc(player), swissFields(p)),
+    );
+    const label = swissLabel(round, t.swissRounds);
+    tx.update(tRef, {
+      currentRound: round,
+      roundPhase: 'playing',
+      roundLabel: label,
+      roundDeadlineAt: null,
+    });
+    return {
+      t,
+      round,
+      label,
+      pairs: reopen.map((d, i) => ({
+        players: d.get('players') as [string, string],
+        duelId: reopenDuels[i].id,
+      })),
+    };
+  });
+
+  // O post "Rodada N terminou" deixou de valer.
+  const posts = await db
+    .collection('feed')
+    .where('tournamentId', '==', tRef.id)
+    .where('type', '==', 'round')
+    .get();
+  await Promise.all(
+    posts.docs
+      .filter(
+        d =>
+          d.get('roundLabel') === `Rodada ${out.round} de ${out.t.swissRounds}`,
+      )
+      .map(d => d.ref.delete()),
+  );
+
+  const nicks = new Map<string, string>();
+  await Promise.all(
+    out.pairs
+      .flatMap(p => p.players)
+      .map(async p =>
+        nicks.set(p, (await users.doc(p).get()).get('nick') ?? '...'),
+      ),
+  );
+  const short = out.label.replace('Suíço · ', '');
+  await Promise.all(
+    out.pairs.flatMap(pair =>
+      pair.players.map(player =>
+        notifyUser(player, {
+          title: `${out.t.name}: rodada reaberta`,
+          body: `A ${short} foi reaberta para quem não jogou. Você ainda pode enfrentar @${nicks.get(
+            pair.players.find(p => p !== player)!,
+          )}.`,
+          link: `/duel/${pair.duelId}`,
+        }),
+      ),
+    ),
+  );
+  return { reopened: out.pairs.length };
+});
+
 // Muda o prazo da rodada em jogo (estender quando alguém pede mais um dia).
 export const setTournamentRoundDeadline = onCall(async request => {
   const uid = requireAuth(request.auth?.uid);
@@ -1730,6 +1889,8 @@ export const resolveTournamentMatch = onCall(async request => {
       return applyFinalize(tx, duelRef, duel, winnerUid, reads).unlocked;
     }
     applyCancel(tx, duelRef, duel);
+    // Derrota dupla decidida pelo organizador não é reaberta depois.
+    tx.update(duelRef, { resolvedBy: 'organizer' });
     return undefined;
   });
   await notifyAllMedals(unlocked);

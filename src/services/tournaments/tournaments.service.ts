@@ -54,6 +54,7 @@ export async function uploadDeck(t: Tournament, uid: string, localUri: string, c
   await call('submitTournamentDeck', { id: t.id, path });
 }
 export const getDeckUrl = (path: string) => getDownloadURL(ref(getStorage(), path));
+export const reopenRound = (id: string) => call<{ id: string }, { reopened: number }>('reopenTournamentRound', { id });
 export const remindDecks = (id: string) => call<{ id: string }, { count: number }>('remindTournamentDecks', { id });
 export const reviewDeck = (id: string, playerUid: string, approved: boolean, reason?: string) =>
   call('reviewTournamentDeck', { id, playerUid, approved, reason });

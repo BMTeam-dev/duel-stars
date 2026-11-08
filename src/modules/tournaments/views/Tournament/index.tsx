@@ -25,6 +25,7 @@ import {
   needsGameId,
   postNotice,
   remindDecks,
+  reopenRound,
   updateTournamentInfo,
   resolveMatch,
   reviewDeck,
@@ -481,6 +482,36 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     );
   };
 
+  // Suíço manual com a próxima rodada ainda não iniciada: partidas da
+  // anterior que caíram em derrota dupla podem voltar (o backend confere se
+  // foi por prazo, e não decisão do organizador).
+  const reopenable =
+    t.stage === 'swiss' &&
+    t.roundMode === 'manual' &&
+    t.roundPhase === 'ready' &&
+    t.currentRound
+      ? matches.filter(
+          m =>
+            m.stage === 'swiss' &&
+            m.round === t.currentRound! - 1 &&
+            m.result === 'double_loss' &&
+            !!m.duelId,
+        ).length
+      : 0;
+
+  const reopen = async () => {
+    const ok = await showDialog({
+      icon: 'restore',
+      title: 'Reabrir a rodada anterior?',
+      message:
+        'As partidas que terminaram sem ninguém jogar voltam a valer, sem prazo e com o mesmo oponente. Os resultados já jogados continuam. Os confrontos da próxima rodada são desfeitos e montados de novo quando essas partidas terminarem.',
+      confirmLabel: 'Reabrir',
+      cancelLabel: 'Voltar',
+    });
+    if (ok)
+      run(() => reopenRound(t.id), 'Rodada reaberta e jogadores avisados');
+  };
+
   const openRoundSheet = (mode: RoundSheetMode) => {
     setRoundSheetMode(mode);
     roundSheetRef.current?.present();
@@ -624,6 +655,8 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
             onStartRound={() => openRoundSheet('start')}
             onChangeDeadline={() => openRoundSheet('deadline')}
             onPostNotice={() => openRoundSheet('notice')}
+            reopenable={reopenable}
+            onReopen={reopen}
           />
         )}
 

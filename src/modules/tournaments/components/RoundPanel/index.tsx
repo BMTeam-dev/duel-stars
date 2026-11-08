@@ -14,12 +14,25 @@ type Props = {
   onStartRound: () => void;
   onChangeDeadline: () => void;
   onPostNotice: () => void;
+  // Partidas da rodada anterior que caíram por prazo sem ninguém jogar.
+  reopenable: number;
+  onReopen: () => void;
 };
 
 // Topo do torneio em andamento: a rodada atual com o prazo e o aviso fixo do
 // organizador (o "canal de avisos"). No modo manual, o organizador inicia
 // cada rodada e muda o prazo daqui.
-export function RoundPanel({ t, isOrganizer, readyLabel, busy, onStartRound, onChangeDeadline, onPostNotice }: Props) {
+export function RoundPanel({
+  t,
+  isOrganizer,
+  readyLabel,
+  busy,
+  onStartRound,
+  onChangeDeadline,
+  onPostNotice,
+  reopenable,
+  onReopen,
+}: Props) {
   const manual = t.roundMode === 'manual';
   const playing = manual && t.roundPhase === 'playing';
   const ready = manual && t.roundPhase === 'ready' && !!readyLabel;
@@ -64,6 +77,15 @@ export function RoundPanel({ t, isOrganizer, readyLabel, busy, onStartRound, onC
       {isOrganizer && (
         <>
           {ready && <Button label={`Iniciar ${readyLabel}`} icon="play" loading={busy} onPress={onStartRound} />}
+          {ready && reopenable > 0 && (
+            <Button
+              label={`Reabrir rodada anterior (${reopenable} sem jogar)`}
+              icon="restore"
+              variant="ghost"
+              loading={busy}
+              onPress={onReopen}
+            />
+          )}
           <Actions>
             {playing && (
               <Action>
