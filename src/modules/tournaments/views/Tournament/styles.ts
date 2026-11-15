@@ -300,3 +300,25 @@ export const PendingNoticeText = styled.Text`
   font-size: ${fontSize.body}px;
   font-weight: 700;
 `;
+
+export const SectionHead = styled.View`
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${spacing.sm}px;
+`;
+
+export const ShareChip = styled.Pressable`
+  flex-direction: row;
+  align-items: center;
+  gap: ${spacing.xs}px;
+  padding: ${spacing.xs}px ${spacing.md}px;
+  border-radius: ${radius.pill}px;
+  background-color: ${colors.gold.soft};
+`;
+
+export const ShareChipText = styled.Text`
+  color: ${colors.gold.main};
+  font-size: ${fontSize.caption}px;
+  font-weight: 700;
+`;

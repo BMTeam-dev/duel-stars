@@ -57,6 +57,8 @@ import { MatchRow } from '../../components/MatchRow';
 import { RoundPanel } from '../../components/RoundPanel';
 import { RoundSheet, RoundSheetMode } from '../../components/RoundSheet';
 import { TournamentInfoSheet } from '../../components/TournamentInfoSheet';
+import { ShareSheet } from '../../components/ShareSheet';
+import { roundShare, ShareContent, standingsShare } from '../../share';
 import { AppSheet } from '../../../../shared/ui/AppSheet';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Button } from '../../../../shared/ui/Button';
@@ -73,6 +75,9 @@ import {
   ChampionLabel,
   Rounds,
   RoundTitle,
+  SectionHead,
+  ShareChip,
+  ShareChipText,
   StandingNick,
   StandingNum,
   StandingPos,
@@ -155,6 +160,8 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   const roundSheetRef = useRef<BottomSheetModal>(null);
   const deckSheetRef = useRef<BottomSheetModal>(null);
   const infoSheetRef = useRef<BottomSheetModal>(null);
+  const shareSheetRef = useRef<BottomSheetModal>(null);
+  const [shareContent, setShareContent] = useState<ShareContent | null>(null);
   const [deckOf, setDeckOf] = useState<string | null>(null);
   const [roundSheetMode, setRoundSheetMode] = useState<RoundSheetMode>('start');
 
@@ -579,6 +586,17 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
   ];
   const table = showStandings ? swissStandings(players) : [];
 
+  const openShare = (content: ShareContent) => {
+    setShareContent(content);
+    shareSheetRef.current?.present();
+  };
+  const shareButton = (content: () => ShareContent) => (
+    <ShareChip onPress={() => openShare(content())} hitSlop={8}>
+      <Icon name="share-variant" size={14} color={colors.gold.main} />
+      <ShareChipText>Compartilhar</ShareChipText>
+    </ShareChip>
+  );
+
   return (
     <Screen>
       <ScreenHeader title="Torneio" onBack={() => navigation.goBack()} />
@@ -907,9 +925,14 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
 
         {currentTab === 'standings' && (
           <>
-            {t.stage === 'top' && !!t.topCut && (
-              <Meta>Os {t.topCut} primeiros foram para o mata-mata.</Meta>
-            )}
+            <SectionHead>
+              <Meta>
+                {t.stage === 'top' && !!t.topCut
+                  ? `Os ${t.topCut} primeiros foram para o mata-mata.`
+                  : 'Pontos, depois Adv. % no desempate.'}
+              </Meta>
+              {shareButton(() => standingsShare(t, table, matches, profiles))}
+            </SectionHead>
             <StandingsTable>
               <StandingRow header>
                 <StandingPos header>#</StandingPos>
@@ -951,7 +974,12 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
           ) : (
             groups.map(group => (
               <Rounds key={group.key}>
-                <RoundTitle>{group.title}</RoundTitle>
+                <SectionHead>
+                  <RoundTitle>{group.title}</RoundTitle>
+                  {shareButton(() =>
+                    roundShare(t, group.title, group.matches, profiles),
+                  )}
+                </SectionHead>
                 {group.matches.map(match => {
                   const tappable =
                     (match.players.includes(uid) && !!match.duelId) ||
@@ -1016,6 +1044,8 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
         busy={busy}
         onSubmit={saveInfo}
       />
+
+      <ShareSheet ref={shareSheetRef} content={shareContent} />
 
       <DeckReviewSheet
         ref={deckSheetRef}
