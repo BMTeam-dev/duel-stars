@@ -59,13 +59,18 @@ export const ShareSheet = forwardRef<BottomSheetModal, Props>(
           title={
             content?.kind === 'round'
               ? `Compartilhar ${content.title.toLowerCase()}`
+              : content?.kind === 'champion'
+              ? 'Compartilhar campeão'
+              : content?.kind === 'invite'
+              ? 'Compartilhar torneio'
               : 'Compartilhar classificação'
           }
         >
           <Body>
             <Hint>
-              A imagem sai com a marca do Duel Stars, pronta para o grupo. O
-              texto já vem com a formatação do WhatsApp.
+              {content?.kind === 'invite' && content.password
+                ? 'A imagem leva o código, sem a senha. O texto leva os dois, com a formatação do WhatsApp.'
+                : 'A imagem sai com a marca do Duel Stars, pronta para o grupo. O texto já vem com a formatação do WhatsApp.'}
             </Hint>
             <Button
               label="Enviar como imagem"

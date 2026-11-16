@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Share } from 'react-native';
+import { ActivityIndicator, ScrollView } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { colors } from '../../../../configs/colors';
@@ -58,7 +58,13 @@ import { RoundPanel } from '../../components/RoundPanel';
 import { RoundSheet, RoundSheetMode } from '../../components/RoundSheet';
 import { TournamentInfoSheet } from '../../components/TournamentInfoSheet';
 import { ShareSheet } from '../../components/ShareSheet';
-import { roundShare, ShareContent, standingsShare } from '../../share';
+import {
+  championShare,
+  inviteShare,
+  roundShare,
+  ShareContent,
+  standingsShare,
+} from '../../share';
 import { AppSheet } from '../../../../shared/ui/AppSheet';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Button } from '../../../../shared/ui/Button';
@@ -311,16 +317,6 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
     if (ok) run(() => cancelTournament(t.id), 'Torneio cancelado');
   };
 
-  const share = () =>
-    Share.share({
-      message: `Torneio "${t.name}" no Duel Stars (${
-        CATEGORY_LABEL[t.category]
-      }, ${formatStart(
-        t.startsAt,
-      )}). Abra o app, vá em Torneios → Código e digite ${t.code}${
-        password ? `. Senha: ${password}` : ''
-      }`,
-    }).catch(() => undefined);
 
   const info: [string, string][] = [
     [
@@ -620,6 +616,8 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
             {t.pot > 0 && !!t.championUid && (
               <Meta>Bolo de {t.pot} estrelas dividido entre os primeiros.</Meta>
             )}
+            {!!t.championUid &&
+              shareButton(() => championShare(t, players, profiles))}
           </Champion>
         )}
 
@@ -790,7 +788,7 @@ function TournamentScreen({ navigation, route }: TournamentProps) {
                   label="Compartilhar"
                   icon="share-variant"
                   variant="secondary"
-                  onPress={share}
+                  onPress={() => openShare(inviteShare(t, password))}
                 />
                 {notStarted(t) && (
                   <Button

@@ -9,10 +9,16 @@ import {
   Brand,
   BrandText,
   Card,
+  Code,
+  CodeBox,
   CutLabel,
   Footer,
   FooterText,
   Heading,
+  Hero,
+  HeroLabel,
+  HeroName,
+  Label,
   Match,
   MatchStatus,
   MatchTable,
@@ -29,6 +35,7 @@ import {
   Table,
   Title,
   Tournament,
+  Value,
   Versus,
 } from './styles';
 
@@ -42,7 +49,9 @@ export const ShareCard = forwardRef<React.ComponentRef<typeof View>, Props>(
     const total =
       content.kind === 'standings'
         ? content.rows.length
-        : content.matches.length;
+        : content.kind === 'round'
+        ? content.matches.length
+        : 0;
     const hidden = Math.max(0, total - SHARE_IMAGE_LIMIT);
     return (
       <View ref={ref} collapsable={false}>
@@ -51,13 +60,57 @@ export const ShareCard = forwardRef<React.ComponentRef<typeof View>, Props>(
             <Icon name="star-four-points" size={14} color={colors.gold.main} />
             <BrandText>DUEL STARS</BrandText>
           </Brand>
-          <Heading>
-            <Tournament>{content.tournament}</Tournament>
-            <Title>{content.title}</Title>
-            <Subtitle>{content.subtitle}</Subtitle>
-          </Heading>
+          {content.kind === 'champion' ? (
+            <Hero>
+              <Icon name="crown" size={48} color={colors.gold.main} />
+              <HeroLabel>Campeão</HeroLabel>
+              <HeroName numberOfLines={1}>
+                {content.champion ? `@${content.champion}` : 'Sem campeão'}
+              </HeroName>
+              <Tournament>{content.tournament}</Tournament>
+              <Subtitle>{content.subtitle}</Subtitle>
+            </Hero>
+          ) : (
+            <Heading>
+              <Tournament>{content.tournament}</Tournament>
+              <Title>{content.title}</Title>
+              <Subtitle>{content.subtitle}</Subtitle>
+            </Heading>
+          )}
 
-          {content.kind === 'standings' ? (
+          {content.kind === 'champion' ? (
+            content.podium.length > 0 && (
+              <Table>
+                {content.podium.map((p, i) => (
+                  <Row key={`${p.nick}-${i}`}>
+                    <Icon
+                      name="medal"
+                      size={16}
+                      color={medalColor(i === 0 ? 2 : 3)!}
+                    />
+                    <RowNick numberOfLines={1}>@{p.nick}</RowNick>
+                    <Label>{p.label}</Label>
+                  </Row>
+                ))}
+              </Table>
+            )
+          ) : content.kind === 'invite' ? (
+            <>
+              <Table>
+                {content.info.map(([label, value]) => (
+                  <Row key={label}>
+                    <Label>{label}</Label>
+                    <Value numberOfLines={1}>{value}</Value>
+                  </Row>
+                ))}
+              </Table>
+              <CodeBox>
+                <HeroLabel>Código do torneio</HeroLabel>
+                <Code>{content.code}</Code>
+                <Note>Abra o Duel Stars → Torneios → Código</Note>
+              </CodeBox>
+            </>
+          ) : content.kind === 'standings' ? (
             <Table>
               <Row header>
                 <Pos>#</Pos>
@@ -100,6 +153,11 @@ export const ShareCard = forwardRef<React.ComponentRef<typeof View>, Props>(
               + {hidden}{' '}
               {content.kind === 'standings' ? 'jogadores' : 'partidas'} · veja
               tudo no app
+            </Note>
+          )}
+          {content.kind === 'champion' && content.pot > 0 && (
+            <Note>
+              Bolo de {content.pot} estrelas dividido entre os primeiros.
             </Note>
           )}
           {content.kind === 'standings' && (

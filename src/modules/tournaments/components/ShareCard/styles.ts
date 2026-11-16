@@ -186,3 +186,59 @@ export const FooterText = styled.Text`
 export const RowNick = styled(Nick)`
   flex: 1;
 `;
+
+export const Hero = styled.View`
+  align-items: center;
+  gap: ${spacing.xs}px;
+  padding: ${spacing.xl}px ${spacing.lg}px;
+  border-radius: ${radius.lg}px;
+  border-width: 1px;
+  border-color: ${colors.gold.dark};
+  background-color: ${colors.gold.soft};
+`;
+
+export const HeroLabel = styled.Text`
+  color: ${colors.gold.main};
+  font-size: ${fontSize.caption}px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+`;
+
+export const HeroName = styled.Text`
+  margin-bottom: ${spacing.sm}px;
+  color: ${colors.text.primary};
+  font-size: 30px;
+  font-weight: 900;
+`;
+
+export const Label = styled.Text`
+  color: ${colors.text.secondary};
+  font-size: ${fontSize.caption}px;
+  font-weight: 700;
+`;
+
+export const Value = styled.Text`
+  flex: 1;
+  text-align: right;
+  color: ${colors.text.primary};
+  font-size: ${fontSize.body}px;
+  font-weight: 700;
+`;
+
+export const CodeBox = styled.View`
+  align-items: center;
+  gap: ${spacing.xs}px;
+  padding: ${spacing.lg}px;
+  border-radius: ${radius.lg}px;
+  border-width: 1px;
+  border-style: dashed;
+  border-color: ${colors.gold.dark};
+`;
+
+export const Code = styled.Text`
+  color: ${colors.gold.main};
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 6px;
+`;
