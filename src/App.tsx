@@ -25,6 +25,7 @@ import { ScreensTypes } from './navigation/screensTypes';
 import { DialogProvider } from './shared/ui/dialog/DialogProvider';
 import { colors } from './configs/colors';
 import { OfflineScreen } from './shared/ui/OfflineScreen';
+import { UpdateGate } from './shared/ui/UpdateGate';
 
 function AuthListener({ navigationRef }: { navigationRef: NavigationContainerRef<ScreensTypes> }) {
   useAuthListener();
@@ -81,6 +82,7 @@ export default function App() {
                   <DialogProvider>
                     <AuthListener navigationRef={navigationRef} />
                     <Routes />
+                    <UpdateGate />
                   </DialogProvider>
                 </BottomSheetModalProvider>
                 <Toaster

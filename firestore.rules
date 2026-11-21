@@ -125,6 +125,12 @@ service cloud.firestore {
       }
     }
 
+    // Configuração do app (versão mínima etc.): todos leem, inclusive antes
+    // do login; só se altera pelo console.
+    match /config/{docId} {
+      allow read: if true;
+    }
+
     // Senha do torneio privado: só o organizador lê (pra repassar).
     match /tournamentSecrets/{id} {
       allow read: if signedIn() && resource.data.organizerUid == request.auth.uid;
