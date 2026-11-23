@@ -1,10 +1,14 @@
 import * as React from 'react';
 import { forwardRef } from 'react';
 import { View } from 'react-native';
-import { colors } from '../../../../configs/colors';
-import { Icon } from '../../../../shared/ui/Icon';
-import { medalColor } from '../../../ranking/medalColor';
-import { SHARE_IMAGE_LIMIT, ShareContent, ShareMatch } from '../../share';
+import { colors } from '../../../configs/colors';
+import { Icon } from '../Icon';
+import { medalColor } from '../../medalColor';
+import {
+  SHARE_IMAGE_LIMIT,
+  ShareContent,
+  ShareMatch,
+} from '../ShareSheet/content';
 import {
   Brand,
   BrandText,
@@ -67,18 +71,40 @@ export const ShareCard = forwardRef<React.ComponentRef<typeof View>, Props>(
               <HeroName numberOfLines={1}>
                 {content.champion ? `@${content.champion}` : 'Sem campeão'}
               </HeroName>
-              <Tournament>{content.tournament}</Tournament>
+              <Tournament>{content.heading}</Tournament>
               <Subtitle>{content.subtitle}</Subtitle>
             </Hero>
           ) : (
             <Heading>
-              <Tournament>{content.tournament}</Tournament>
+              <Tournament>{content.heading}</Tournament>
               <Title>{content.title}</Title>
               <Subtitle>{content.subtitle}</Subtitle>
             </Heading>
           )}
 
-          {content.kind === 'champion' ? (
+          {content.kind === 'ranking' ? (
+            <Table>
+              {content.podium.map((p, i) => (
+                <Row key={`${p.nick}-${i}`} tall>
+                  <Icon name="medal" size={22} color={medalColor(i + 1)!} />
+                  <RowNick numberOfLines={1} big>
+                    @{p.nick}
+                  </RowNick>
+                  <Num strong wide>
+                    {p.stars}
+                  </Num>
+                  <Icon
+                    name="star-four-points"
+                    size={14}
+                    color={colors.gold.main}
+                  />
+                  <Num wide>
+                    {p.wins}V {p.losses}D
+                  </Num>
+                </Row>
+              ))}
+            </Table>
+          ) : content.kind === 'champion' ? (
             content.podium.length > 0 && (
               <Table>
                 {content.podium.map((p, i) => (

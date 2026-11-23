@@ -5,10 +5,10 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import RNShare from 'react-native-share';
 import { captureRef } from 'react-native-view-shot';
-import { AppSheet } from '../../../../shared/ui/AppSheet';
-import { Button } from '../../../../shared/ui/Button';
-import { toast } from '../../../../shared/ui/toast';
-import { ShareContent, shareText } from '../../share';
+import { AppSheet } from '../AppSheet';
+import { Button } from '../Button';
+import { toast } from '../toast';
+import { ShareContent, shareText } from './content';
 import { ShareCard } from '../ShareCard';
 import { CARD_WIDTH } from '../ShareCard/styles';
 import { Body, Hint, Offscreen } from './styles';
@@ -63,6 +63,8 @@ export const ShareSheet = forwardRef<BottomSheetModal, Props>(
               ? 'Compartilhar campeão'
               : content?.kind === 'invite'
               ? 'Compartilhar torneio'
+              : content?.kind === 'ranking'
+              ? 'Compartilhar ranking'
               : 'Compartilhar classificação'
           }
         >

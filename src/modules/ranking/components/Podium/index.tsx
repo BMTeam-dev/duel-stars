@@ -3,7 +3,7 @@ import { RankingEntry } from '../../../../services/ranking/ranking.types';
 import { Avatar } from '../../../../shared/ui/Avatar';
 import { Icon } from '../../../../shared/ui/Icon';
 import { colors } from '../../../../configs/colors';
-import { medalColor } from '../../medalColor';
+import { medalColor } from '../../../../shared/medalColor';
 import { Base, BaseText, Column, Nick, Row, Stars, StarsText } from './styles';
 
 type Props = {

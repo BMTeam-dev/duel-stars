@@ -1,5 +1,5 @@
-// Classificação e rodadas em formato de compartilhar: o mesmo conteúdo vira
-// imagem (ShareCard) ou texto com a formatação do WhatsApp (*negrito*).
+// Classificação, rodadas, campeão e convite no formato do ShareSheet.
+import { ShareContent } from '../../shared/ui/ShareSheet/content';
 import {
   CATEGORY_LABEL,
   FORMAT_LABEL,
@@ -15,60 +15,6 @@ import {
   TournamentMatch,
   TournamentPlayer,
 } from '../../services/tournaments/tournaments.types';
-
-export type ShareRow = {
-  nick: string;
-  points: number;
-  wins: number;
-  losses: number;
-  omw: number;
-};
-
-export type ShareMatch = {
-  table: number;
-  players: [string | null, string | null];
-  winner: 0 | 1 | null;
-  status: string | null;
-};
-
-export type ShareContent =
-  | {
-      kind: 'standings';
-      tournament: string;
-      title: string;
-      subtitle: string;
-      rows: ShareRow[];
-      topCut: number | null;
-    }
-  | {
-      kind: 'round';
-      tournament: string;
-      title: string;
-      subtitle: string;
-      matches: ShareMatch[];
-    }
-  | {
-      kind: 'champion';
-      tournament: string;
-      title: string;
-      subtitle: string;
-      champion: string | null;
-      podium: { label: string; nick: string }[];
-      pot: number;
-    }
-  | {
-      kind: 'invite';
-      tournament: string;
-      title: string;
-      subtitle: string;
-      info: [string, string][];
-      code: string;
-      // Só no texto, e só quando quem compartilha é o organizador.
-      password: string | null;
-    };
-
-// Na imagem cabem até tantas linhas; o texto leva todas.
-export const SHARE_IMAGE_LIMIT = 24;
 
 type Profiles = Record<string, PublicProfile>;
 
@@ -103,7 +49,7 @@ export function standingsShare(
       : 'Antes da 1ª rodada';
   return {
     kind: 'standings',
-    tournament: t.name,
+    heading: t.name,
     title: 'Classificação',
     subtitle,
     topCut: t.topCut,
@@ -148,7 +94,7 @@ export function roundShare(
   ];
   return {
     kind: 'round',
-    tournament: t.name,
+    heading: t.name,
     title,
     subtitle: parts.join(' · '),
     matches: sorted.map((m, i) => ({
@@ -166,75 +112,6 @@ export function roundShare(
       status: matchStatus(m),
     })),
   };
-}
-
-const MEDALS = ['🥇', '🥈', '🥉'];
-
-export function shareText(content: ShareContent): string {
-  const head = [
-    `🏆 *${content.tournament}*`,
-    `${content.title} · ${content.subtitle}`,
-    '',
-  ];
-  const foot = ['', '_Duel Stars · torneios de Yu-Gi-Oh! online_'];
-  if (content.kind === 'champion') {
-    return [
-      `🏆 *${content.tournament}*`,
-      content.subtitle,
-      '',
-      `👑 Campeão: *@${content.champion ?? 'sem campeão'}*`,
-      ...content.podium.map(
-        (p, i) => `${i === 0 ? '🥈' : '🥉'} ${p.label}: @${p.nick}`,
-      ),
-      ...(content.pot ? ['', `⭐ Bolo de ${content.pot} estrelas`] : []),
-      ...foot,
-    ].join('\n');
-  }
-  if (content.kind === 'invite') {
-    return [
-      `🏆 *${content.tournament}*`,
-      `${content.title} · ${content.subtitle}`,
-      '',
-      ...content.info.map(([label, value]) => `${label}: *${value}*`),
-      '',
-      `Para entrar: abra o Duel Stars, vá em Torneios → Código e digite *${
-        content.code
-      }*${content.password ? `. Senha: *${content.password}*` : ''}`,
-      ...foot,
-    ].join('\n');
-  }
-  if (content.kind === 'standings') {
-    const lines = content.rows.flatMap((r, i) => {
-      const pos = MEDALS[i] ?? `${i + 1}.`;
-      const line = `${pos} *@${r.nick}* · ${r.points} pts (${r.wins}-${
-        r.losses
-      }) · ${Math.round(r.omw * 100)}%`;
-      const cut =
-        content.topCut &&
-        i === content.topCut - 1 &&
-        i < content.rows.length - 1
-          ? [`— corte do top ${content.topCut} —`]
-          : [];
-      return [line, ...cut];
-    });
-    return [
-      ...head,
-      ...lines,
-      '',
-      'Pts, V-D e Adv. % (desempate: aproveitamento dos adversários).',
-      ...foot,
-    ].join('\n');
-  }
-  const lines = content.matches.map(m => {
-    const side = (i: 0 | 1) => {
-      const nick = m.players[i];
-      if (!nick) return '—';
-      return m.winner === i ? `*@${nick}* ✅` : `@${nick}`;
-    };
-    const vs = m.players[1] ? `${side(0)} x ${side(1)}` : side(0);
-    return `Mesa ${m.table}: ${vs}${m.status ? ` · ${m.status}` : ''}`;
-  });
-  return [...head, ...lines, ...foot].join('\n');
 }
 
 // Pódio: placements do mata-mata [campeão, vice, semifinalistas]; no suíço
@@ -256,7 +133,7 @@ export function championShare(
   });
   return {
     kind: 'champion',
-    tournament: t.name,
+    heading: t.name,
     title: 'Campeão',
     subtitle: `${CATEGORY_LABEL[t.category]} · ${
       TOURNAMENT_FORMAT_LABEL[t.format]
@@ -274,7 +151,7 @@ export function inviteShare(
   const open = t.status === 'open' || t.status === 'checkin';
   return {
     kind: 'invite',
-    tournament: t.name,
+    heading: t.name,
     title: open ? 'Inscrições abertas' : 'Torneio',
     subtitle: t.startsAt
       ? `Começa ${formatStart(t.startsAt)}`

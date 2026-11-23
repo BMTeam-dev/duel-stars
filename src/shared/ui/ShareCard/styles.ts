@@ -1,6 +1,6 @@
 import styled from 'styled-components/native';
-import { colors } from '../../../../configs/colors';
-import { fontSize, radius, spacing } from '../../../../configs/theme';
+import { colors } from '../../../configs/colors';
+import { fontSize, radius, spacing } from '../../../configs/theme';
 
 // Largura fixa: a imagem sai igual em qualquer aparelho (capturada em 1080px).
 export const CARD_WIDTH = 360;
@@ -54,11 +54,15 @@ export const Table = styled.View`
   overflow: hidden;
 `;
 
-export const Row = styled.View<{ header?: boolean; cut?: boolean }>`
+export const Row = styled.View<{
+  header?: boolean;
+  cut?: boolean;
+  tall?: boolean;
+}>`
   flex-direction: row;
   align-items: center;
   gap: ${spacing.sm}px;
-  padding: ${spacing.sm}px ${spacing.md}px;
+  padding: ${({ tall }) => (tall ? spacing.lg : spacing.sm)}px ${spacing.md}px;
   background-color: ${({ header }) =>
     header ? colors.surfaceRaised : colors.surface};
   border-bottom-width: ${({ cut }) => (cut ? 2 : 1)}px;
@@ -183,8 +187,10 @@ export const FooterText = styled.Text`
   font-weight: 600;
 `;
 
-export const RowNick = styled(Nick)`
+export const RowNick = styled(Nick)<{ big?: boolean }>`
   flex: 1;
+  ${({ big }) =>
+    big ? `font-size: ${fontSize.bodyLarge}px; font-weight: 800;` : ''}
 `;
 
 export const Hero = styled.View`

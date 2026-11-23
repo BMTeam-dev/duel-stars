@@ -162,6 +162,14 @@ function CreateChallengeScreen({ navigation }: CreateChallengeProps) {
                   <Hint>Mostre este QR para o seu oponente escanear em Desafiar → Escanear QR.</Hint>
                   <CodeLabel>Se a câmera não ler, ele pode digitar o código</CodeLabel>
                   <CodeValue selectable>{challenge.code}</CodeValue>
+                  <ShareArea>
+                    <Button
+                      label="Compartilhar código"
+                      icon="share-variant"
+                      variant="secondary"
+                      onPress={() => shareCode(challenge.code)}
+                    />
+                  </ShareArea>
                 </>
               )}
               <Waiting>

@@ -57,12 +57,12 @@ import { MatchRow } from '../../components/MatchRow';
 import { RoundPanel } from '../../components/RoundPanel';
 import { RoundSheet, RoundSheetMode } from '../../components/RoundSheet';
 import { TournamentInfoSheet } from '../../components/TournamentInfoSheet';
-import { ShareSheet } from '../../components/ShareSheet';
+import { ShareSheet } from '../../../../shared/ui/ShareSheet';
+import { ShareContent } from '../../../../shared/ui/ShareSheet/content';
 import {
   championShare,
   inviteShare,
   roundShare,
-  ShareContent,
   standingsShare,
 } from '../../share';
 import { AppSheet } from '../../../../shared/ui/AppSheet';

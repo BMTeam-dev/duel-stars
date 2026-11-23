@@ -3,9 +3,6 @@
   <uses-permission android:name="android.permission.INTERNET" />
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
   <uses-permission android:name="android.permission.CAMERA" />
-  <!-- Sem anúncios: tira o ID de publicidade que o Firebase Analytics traz. -->
-  <uses-permission android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION" tools:node="remove" />
-  <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID" tools:node="remove" />
   <!-- As permissões acima (e a de Wi-Fi que o NetInfo traz) fazem o Play
        exigir Wi-Fi e câmera no aparelho. Nenhum dos dois é obrigatório: dá
        para jogar no 4G e duelar por código, sem ler QR. -->

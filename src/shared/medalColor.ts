@@ -1,4 +1,4 @@
-import { colors } from '../../configs/colors';
+import { colors } from '../configs/colors';
 
 export function medalColor(position: number): string | null {
   if (position === 1) return colors.gold.main;

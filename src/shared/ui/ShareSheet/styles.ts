@@ -1,6 +1,6 @@
 import styled from 'styled-components/native';
-import { colors } from '../../../../configs/colors';
-import { fontSize, spacing } from '../../../../configs/theme';
+import { colors } from '../../../configs/colors';
+import { fontSize, spacing } from '../../../configs/theme';
 
 // Fora da tela, mas desenhada: a captura lê a view, não os pixels da tela.
 export const Offscreen = styled.View`

@@ -1,6 +1,11 @@
 import * as React from 'react';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Linking } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+} from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useCameraPermission } from 'react-native-vision-camera';
 import { colors } from '../../../../configs/colors';
@@ -157,6 +162,11 @@ function ScanChallengeScreen({ navigation, route }: ScanChallengeProps) {
   return (
     <Screen>
       <ScreenHeader title={codeOnly ? 'Digitar código' : 'Escanear QR'} onBack={() => navigation.goBack()} />
+      {/* O campo do código fica no pé da tela: sem isso o teclado cobre ele. */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       {codeOnly ? (
         <CodeIntro>
           <Icon name="keyboard" size={48} color={colors.gold.main} />
@@ -209,6 +219,7 @@ function ScanChallengeScreen({ navigation, route }: ScanChallengeProps) {
           onPress={() => loadPreview(code)}
         />
       </CodeBox>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }

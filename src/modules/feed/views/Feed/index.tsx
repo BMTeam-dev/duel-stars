@@ -15,6 +15,7 @@ import { useMissingTournaments } from '../../../../services/tournaments/useMissi
 import { useActiveCategory } from '../../../../services/profile/useActiveCategory';
 import { CategoryTabs } from '../../../../shared/ui/CategoryTabs';
 import { Scope, ScopeChips } from '../../../../shared/ui/ScopeChips';
+import { AdBanner } from '../../../../shared/ui/AdBanner';
 import { Button } from '../../../../shared/ui/Button';
 import { EmptyState } from '../../../../shared/ui/EmptyState';
 import { ActiveDuelBanner } from '../../components/ActiveDuelBanner';
@@ -22,7 +23,7 @@ import { ChallengeSheet } from '../../components/ChallengeSheet';
 import { FeedHeader } from '../../components/FeedHeader';
 import { FeedPostItem } from '../../components/FeedPostItem';
 import { OpenTournaments } from '../../components/OpenTournaments';
-import { ChallengeButtonArea, Container, Header } from './styles';
+import { BottomArea, ChallengeButtonArea, Container, Header } from './styles';
 
 const OPEN_STATUSES: Duel['status'][] = ['active', 'awaiting', 'disputed'];
 
@@ -31,6 +32,7 @@ function FeedScreen({ navigation }: FeedProps) {
   const challengeSheetRef = useRef<BottomSheetModal>(null);
   const [scope, setScope] = useState<Scope>('city');
   const [posts, setPosts] = useState<FeedPost[] | null>(null);
+  const [adHeight, setAdHeight] = useState(0);
   const [myDuels, setMyDuels] = useState<Duel[]>([]);
   const { category, setCategory } = useActiveCategory();
 
@@ -95,7 +97,7 @@ function FeedScreen({ navigation }: FeedProps) {
               flexGrow: 1,
               gap: spacing.sm,
               paddingHorizontal: spacing.lg,
-              paddingBottom: CHALLENGE_BUTTON_AREA + spacing.lg,
+              paddingBottom: CHALLENGE_BUTTON_AREA + adHeight + spacing.lg,
             }}
             renderItem={({ item }) => (
               <FeedPostItem
@@ -129,14 +131,17 @@ function FeedScreen({ navigation }: FeedProps) {
           />
         )}
 
-        <ChallengeButtonArea>
-          <Button
-            label="Desafiar"
-            icon="sword-cross"
-            size="lg"
-            onPress={() => challengeSheetRef.current?.present()}
-          />
-        </ChallengeButtonArea>
+        <BottomArea>
+          <AdBanner placement="feed" onHeight={setAdHeight} />
+          <ChallengeButtonArea>
+            <Button
+              label="Desafiar"
+              icon="sword-cross"
+              size="lg"
+              onPress={() => challengeSheetRef.current?.present()}
+            />
+          </ChallengeButtonArea>
+        </BottomArea>
       </Container>
 
       <ChallengeSheet ref={challengeSheetRef} />
