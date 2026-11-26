@@ -5,8 +5,8 @@ import mobileAds, { AdsConsent, TestIds } from 'react-native-google-mobile-ads';
 // anúncios). Em debug sempre os de teste do Google: clicar em anúncio real
 // do próprio app pode suspender a conta.
 const UNITS = {
-  feed: '',
-  ranking: '',
+  feed: 'ca-app-pub-2567732619583094/1140432982',
+  ranking: 'ca-app-pub-2567732619583094/7769867622',
 };
 export type AdPlacement = keyof typeof UNITS;
 
